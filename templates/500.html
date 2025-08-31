@@ -1,8 +1,79 @@
 <!DOCTYPE html>
 <html>
-<head><title>500 - Server Error</title></head>
+<head>
+    <title>UFW Web Manager - Server Error</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .error-code {
+            font-size: 8em;
+            font-weight: bold;
+            margin: 0;
+            opacity: 0.8;
+        }
+        .error-message {
+            font-size: 1.5em;
+            margin: 20px 0;
+            opacity: 0.9;
+        }
+        .error-description {
+            font-size: 1em;
+            margin: 20px 0;
+            opacity: 0.7;
+        }
+        .home-link {
+            display: inline-block;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .home-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .icon {
+            font-size: 2em;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
 <body>
-    <h1>500 - Internal Server Error</h1>
-    <a href="/">Go Home</a>
+    <div class="error-container">
+        <div class="icon">⚠️</div>
+        <h1 class="error-code">500</h1>
+        <h2 class="error-message">Internal Server Error</h2>
+        <p class="error-description">
+            Something went wrong on our end. This could be due to:<br>
+            • UFW command execution issues<br>
+            • Permission problems<br>
+            • Server configuration errors<br><br>
+            Please try again or contact the administrator.
+        </p>
+        <a href="{{ url_for('index') }}" class="home-link">Go to Dashboard</a>
+    </div>
 </body>
 </html>

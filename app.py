@@ -18,7 +18,7 @@ app.secret_key = secrets.token_hex(16)
 
 # Configuration
 CONFIG = {
-    'HOST': '127.0.0.1',
+    'HOST': '0.0.0.0',
     'PORT': 5000,
     'DEBUG': False,
     'SESSION_TIMEOUT': 30  # minutes
