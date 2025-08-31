@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - UFW Web Manager{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Flash messages for error page -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show mt-3" role="alert">
+                    {% if category == 'error' %}
+                        <i class="bi bi-exclamation-triangle"></i>
+                    {% elif category == 'warning' %}
+                        <i class="bi bi-exclamation-circle"></i>
+                    {% else %}
+                        <i class="bi bi-check-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="py-5">
+                <i class="bi bi-exclamation-triangle display-1 text-warning"></i>
+                <h1 class="display-4 mt-3">404</h1>
+                <h2 class="mb-3">Page Not Found</h2>
+                <p class="text-muted mb-4">
+                    The page you are looking for doesn't exist or has been moved.
+                </p>
+                
+                <div class="d-flex justify-content-center gap-3">
+                    {% if session.logged_in %}
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                            <i class="bi bi-house"></i> Return to Dashboard
+                        </a>
+                        <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-journal-text"></i> View Logs
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-primary">
+                            <i class="bi bi-box-arrow-in-right"></i> Go to Login
+                        </a>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-4">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        If you believe this is an error, please contact your system administrator.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Helpful Links for Logged In Users -->
+    {% if session.logged_in %}
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-compass"></i> Quick Navigation
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Main Pages</h6>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <a href="{{ url_for('dashboard') }}" class="text-decoration-none">
+                                        <i class="bi bi-speedometer2"></i> Dashboard
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('logs') }}" class="text-decoration-none">
+                                        <i class="bi bi-journal-text"></i> UFW Logs
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Account</h6>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <a href="{{ url_for('logout') }}" class="text-decoration-none">
+                                        <i class="bi bi-box-arrow-right"></i> Sign Out
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Log the 404 error for analytics/debugging
+    console.log('404 Error: Page not found -', window.location.pathname);
+    
+    // Optional: Add a "Go Back" button functionality
+    if (document.referrer && document.referrer !== window.location.href) {
+        const goBackBtn = document.createElement('button');
+        goBackBtn.className = 'btn btn-outline-secondary ms-2';
+        goBackBtn.innerHTML = '<i class="bi bi-arrow-left"></i> Go Back';
+        goBackBtn.onclick = () => window.history.back();
+        
+        const buttonContainer = document.querySelector('.d-flex.justify-content-center.gap-3');
+        if (buttonContainer) {
+            buttonContainer.appendChild(goBackBtn);
+        }
+    }
+});
+</script>
+{% endblock %}

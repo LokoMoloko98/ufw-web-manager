@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - UFW Web Manager{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Flash messages for error page -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show mt-3" role="alert">
+                    {% if category == 'error' %}
+                        <i class="bi bi-exclamation-triangle"></i>
+                    {% elif category == 'warning' %}
+                        <i class="bi bi-exclamation-circle"></i>
+                    {% else %}
+                        <i class="bi bi-check-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="py-5">
+                <i class="bi bi-exclamation-octagon display-1 text-danger"></i>
+                <h1 class="display-4 mt-3">500</h1>
+                <h2 class="mb-3">Internal Server Error</h2>
+                <p class="text-muted mb-4">
+                    Something went wrong on our end. The server encountered an unexpected condition that prevented it from fulfilling your request.
+                </p>
+                
+                <div class="d-flex justify-content-center gap-3">
+                    {% if session.logged_in %}
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                            <i class="bi bi-house"></i> Return to Dashboard
+                        </a>
+                        <button class="btn btn-outline-secondary" onclick="location.reload()">
+                            <i class="bi bi-arrow-clockwise"></i> Try Again
+                        </button>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-primary">
+                            <i class="bi bi-box-arrow-in-right"></i> Go to Login
+                        </a>
+                        <button class="btn btn-outline-secondary" onclick="location.reload()">
+                            <i class="bi bi-arrow-clockwise"></i> Reload Page
+                        </button>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-4">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        If this problem persists, please contact your system administrator.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Details for Logged In Users -->
+    {% if session.logged_in %}
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-tools"></i> Troubleshooting
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Possible Causes</h6>
+                            <ul class="list-unstyled text-muted">
+                                <li><i class="bi bi-dot"></i> UFW command execution failed</li>
+                                <li><i class="bi bi-dot"></i> Insufficient system permissions</li>
+                                <li><i class="bi bi-dot"></i> System configuration issues</li>
+                                <li><i class="bi bi-dot"></i> Network connectivity problems</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>What You Can Do</h6>
+                            <ul class="list-unstyled text-muted">
+                                <li><i class="bi bi-dot"></i> Refresh the page</li>
+                                <li><i class="bi bi-dot"></i> Try the operation again</li>
+                                <li><i class="bi bi-dot"></i> Check system logs</li>
+                                <li><i class="bi bi-dot"></i> Restart the application</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <h6 class="mb-2">
+                            <i class="bi bi-terminal"></i> System Status Check
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="checkSystemStatus()">
+                                <i class="bi bi-activity"></i> Check UFW Status
+                            </button>
+                            <a href="{{ url_for('logs') }}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-journal-text"></i> View Logs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Error Report Modal -->
+    <div class="modal fade" id="errorReportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bug"></i> Error Report
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="error-details">
+                        <p><strong>Timestamp:</strong> <span id="error-timestamp"></span></p>
+                        <p><strong>URL:</strong> <span id="error-url"></span></p>
+                        <p><strong>User Agent:</strong> <span id="error-useragent"></span></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Log the error for debugging
+    console.error('500 Internal Server Error occurred');
+    console.log('Error details:', {
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        userAgent: navigator.userAgent
+    });
+    
+    // Populate error details modal
+    document.getElementById('error-timestamp').textContent = new Date().toLocaleString();
+    document.getElementById('error-url').textContent = window.location.href;
+    document.getElementById('error-useragent').textContent = navigator.userAgent;
+    
+    // Add error reporting button if user is logged in
+    {% if session.logged_in %}
+    const buttonContainer = document.querySelector('.d-flex.justify-content-center.gap-3');
+    if (buttonContainer) {
+        const reportBtn = document.createElement('button');
+        reportBtn.className = 'btn btn-outline-warning';
+        reportBtn.innerHTML = '<i class="bi bi-bug"></i> Error Details';
+        reportBtn.onclick = () => {
+            const modal = new bootstrap.Modal(document.getElementById('errorReportModal'));
+            modal.show();
+        };
+        buttonContainer.appendChild(reportBtn);
+    }
+    {% endif %}
+});
+
+{% if session.logged_in %}
+async function checkSystemStatus() {
+    try {
+        const button = event.target;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking...';
+        button.disabled = true;
+        
+        const response = await fetch('/api/status');
+        
+        if (response.ok) {
+            const data = await response.json();
+            showAlert(`UFW Status: ${data.active ? 'Active' : 'Inactive'}`, 'info');
+        } else {
+            showAlert('Unable to check UFW status', 'warning');
+        }
+    } catch (error) {
+        showAlert('Error checking system status: ' + error.message, 'danger');
+    } finally {
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}
+
+function showAlert(message, type = 'success') {
+    const alertHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : (type === 'info' ? 'info-circle' : 'exclamation-triangle')}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const alertContainer = document.querySelector('main .pt-3');
+    alertContainer.insertAdjacentHTML('afterbegin', alertHTML);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        const alert = alertContainer.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+{% endif %}
+</script>
+{% endblock %}

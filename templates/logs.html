@@ -1,0 +1,312 @@
+{% extends "layout.html" %}
+
+{% block title %}Logs - UFW Web Manager{% endblock %}
+
+{% block page_content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-journal-text"></i> UFW Logs
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshLogs()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearDisplay()">
+                <i class="bi bi-x-circle"></i> Clear Display
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Log Controls -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-funnel"></i> Filter Options
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="filter-level" class="form-label">Log Level</label>
+                        <select class="form-select" id="filter-level" onchange="filterLogs()">
+                            <option value="">All Levels</option>
+                            <option value="BLOCK">BLOCK</option>
+                            <option value="ALLOW">ALLOW</option>
+                            <option value="DENY">DENY</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filter-search" class="form-label">Search Text</label>
+                        <input type="text" class="form-control" id="filter-search" placeholder="Search in logs..." onkeyup="filterLogs()">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filter-ip" class="form-label">IP Address</label>
+                        <input type="text" class="form-control" id="filter-ip" placeholder="e.g., 192.168.1.100" onkeyup="filterLogs()">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle"></i> Log Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="h5 mb-0" id="total-logs">{{ logs|length }}</div>
+                        <small class="text-muted">Total Entries</small>
+                    </div>
+                    <div class="col">
+                        <div class="h5 mb-0" id="visible-logs">{{ logs|length }}</div>
+                        <small class="text-muted">Visible</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Display -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-list-ul"></i> Log Entries
+                </h5>
+                <small class="text-muted">Last 50 entries</small>
+            </div>
+            <div class="card-body p-0">
+                <div id="logs-container" class="p-3" style="max-height: 600px; overflow-y: auto;">
+                    {% if logs %}
+                        {% for log in logs %}
+                            {% if log.strip() %}
+                            <div class="log-entry" data-log="{{ log|lower }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <code>{{ log }}</code>
+                                    </div>
+                                    <div class="ms-2">
+                                        {% if 'BLOCK' in log %}
+                                            <span class="badge bg-danger">BLOCK</span>
+                                        {% elif 'ALLOW' in log %}
+                                            <span class="badge bg-success">ALLOW</span>
+                                        {% elif 'DENY' in log %}
+                                            <span class="badge bg-warning">DENY</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Parse and display key information -->
+                                {% set log_parts = log.split() %}
+                                {% if log_parts|length > 3 %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        {% if 'SRC=' in log %}
+                                            {% for part in log_parts %}
+                                                {% if part.startswith('SRC=') %}
+                                                    <span class="me-3">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                        From: <strong>{{ part[4:] }}</strong>
+                                                    </span>
+                                                {% endif %}
+                                                {% if part.startswith('DST=') %}
+                                                    <span class="me-3">
+                                                        <i class="bi bi-arrow-left"></i>
+                                                        To: <strong>{{ part[4:] }}</strong>
+                                                    </span>
+                                                {% endif %}
+                                                {% if part.startswith('DPT=') %}
+                                                    <span class="me-3">
+                                                        <i class="bi bi-hdd-network"></i>
+                                                        Port: <strong>{{ part[4:] }}</strong>
+                                                    </span>
+                                                {% endif %}
+                                                {% if part.startswith('PROTO=') %}
+                                                    <span class="me-3">
+                                                        <i class="bi bi-layers"></i>
+                                                        Protocol: <strong>{{ part[6:] }}</strong>
+                                                    </span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-journal-x display-4"></i>
+                            <p class="mt-3">No UFW logs available</p>
+                            <small>Logs may not be available if UFW logging is disabled or no events have occurred.</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-refresh toggle -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()">
+                    <label class="form-check-label" for="auto-refresh">
+                        <i class="bi bi-arrow-repeat"></i> Auto-refresh logs every 30 seconds
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoRefreshInterval = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize log filtering
+    filterLogs();
+    
+    // Scroll to bottom of logs
+    const logsContainer = document.getElementById('logs-container');
+    if (logsContainer) {
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+});
+
+function filterLogs() {
+    const levelFilter = document.getElementById('filter-level').value.toLowerCase();
+    const searchFilter = document.getElementById('filter-search').value.toLowerCase();
+    const ipFilter = document.getElementById('filter-ip').value.toLowerCase();
+    
+    const logEntries = document.querySelectorAll('.log-entry');
+    let visibleCount = 0;
+    
+    logEntries.forEach(entry => {
+        const logText = entry.getAttribute('data-log');
+        let visible = true;
+        
+        // Filter by level
+        if (levelFilter && !logText.includes(levelFilter)) {
+            visible = false;
+        }
+        
+        // Filter by search text
+        if (searchFilter && !logText.includes(searchFilter)) {
+            visible = false;
+        }
+        
+        // Filter by IP address
+        if (ipFilter && !logText.includes(ipFilter)) {
+            visible = false;
+        }
+        
+        entry.style.display = visible ? 'block' : 'none';
+        if (visible) visibleCount++;
+    });
+    
+    // Update statistics
+    document.getElementById('visible-logs').textContent = visibleCount;
+}
+
+function clearDisplay() {
+    // Clear filter inputs
+    document.getElementById('filter-level').value = '';
+    document.getElementById('filter-search').value = '';
+    document.getElementById('filter-ip').value = '';
+    
+    // Show all logs
+    filterLogs();
+}
+
+async function refreshLogs() {
+    try {
+        // Show loading indicator
+        const refreshBtn = document.querySelector('[onclick="refreshLogs()"]');
+        const originalHTML = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Refreshing...';
+        refreshBtn.disabled = true;
+        
+        // Reload the page to get fresh logs
+        // In a more sophisticated implementation, we could fetch logs via AJAX
+        location.reload();
+        
+    } catch (error) {
+        console.error('Failed to refresh logs:', error);
+        showAlert('Failed to refresh logs: ' + error.message, 'danger');
+    }
+}
+
+function toggleAutoRefresh() {
+    const checkbox = document.getElementById('auto-refresh');
+    
+    if (checkbox.checked) {
+        // Start auto-refresh
+        autoRefreshInterval = setInterval(() => {
+            refreshLogs();
+        }, 30000); // 30 seconds
+        
+        showAlert('Auto-refresh enabled (every 30 seconds)', 'info');
+    } else {
+        // Stop auto-refresh
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+        
+        showAlert('Auto-refresh disabled', 'info');
+    }
+}
+
+function showAlert(message, type = 'success') {
+    const alertHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : (type === 'info' ? 'info-circle' : 'exclamation-triangle')}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const alertContainer = document.querySelector('main .pt-3');
+    alertContainer.insertAdjacentHTML('afterbegin', alertHTML);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        const alert = alertContainer.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Add CSS for spinning icon
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}
