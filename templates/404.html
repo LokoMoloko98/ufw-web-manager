@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>UFW Web Manager - Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 20px; margin: 10px 0; border-radius: 5px; }
+        .active { background: #d4edda; color: #155724; }
+        .inactive { background: #f8d7da; color: #721c24; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>UFW Web Manager</h1>
+    <a href="/logout">Logout</a>
+    
+    <div class="status {{ 'active' if status.active else 'inactive' }}">
+        UFW Status: {{ 'Active' if status.active else 'Inactive' }}
+    </div>
+    
+    <h3>Quick Actions</h3>
+    <button onclick="toggleUFW('enable')">Enable UFW</button>
+    <button onclick="toggleUFW('disable')">Disable UFW</button>
+    
+    <h3>Current Rules</h3>
+    <ul>
+    {% for rule in status.rules %}
+        <li>{{ rule }}</li>
+    {% endfor %}
+    </ul>
+    
+    <script>
+    function toggleUFW(action) {
+        fetch('/api/toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: action})
+        }).then(() => location.reload());
+    }
+    </script>
+</body>
+</html>
