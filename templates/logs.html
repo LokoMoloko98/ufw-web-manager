@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>UFW Web Manager - Logs</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 0 0 10px 10px;
+        }
+        .navigation {
+            margin-bottom: 20px;
+        }
+        .navigation a {
+            padding: 10px 15px;
+            margin-right: 10px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .navigation a:hover {
+            background: #0056b3;
+        }
+        .logs-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .log-entry {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+            font-size: 12px;
+            word-wrap: break-word;
+        }
+        .no-logs {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }
+        .refresh-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>UFW Web Manager - Logs</h1>
+        <p>View recent UFW firewall log entries</p>
+    </div>
+    
+    <div class="navigation">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('logs') }}">Logs</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" style="padding: 10px; margin: 10px 0; background: #d4edda; color: #155724; border-radius: 5px;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="logs-container">
+        <button class="refresh-btn" onclick="location.reload();">Refresh Logs</button>
+        
+        <h3>Recent UFW Log Entries (Last 50)</h3>
+        
+        {% if logs %}
+            {% for log in logs %}
+                {% if log.strip() %}
+                    <div class="log-entry">{{ log }}</div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="no-logs">
+                No UFW log entries found. This could mean:<br>
+                • UFW logging is disabled<br>
+                • No firewall activity has occurred recently<br>
+                • Log files are not accessible
+            </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // Auto-refresh logs every 30 seconds
+        setTimeout(function() {
+            location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -3,40 +3,289 @@
 <head>
     <title>UFW Web Manager - Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .status { padding: 20px; margin: 10px 0; border-radius: 5px; }
-        .active { background: #d4edda; color: #155724; }
-        .inactive { background: #f8d7da; color: #721c24; }
-        button { padding: 10px; margin: 5px; cursor: pointer; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 0 0 10px 10px;
+        }
+        .navigation {
+            margin-bottom: 20px;
+        }
+        .navigation a {
+            padding: 10px 15px;
+            margin-right: 10px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .navigation a:hover {
+            background: #0056b3;
+        }
+        .status { 
+            padding: 20px; 
+            margin: 10px 0; 
+            border-radius: 10px; 
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+        }
+        .active { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 2px solid #28a745;
+        }
+        .inactive { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 2px solid #dc3545;
+        }
+        .actions {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button { 
+            padding: 12px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .btn-enable {
+            background: #28a745;
+            color: white;
+        }
+        .btn-enable:hover {
+            background: #218838;
+        }
+        .btn-disable {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-disable:hover {
+            background: #c82333;
+        }
+        .btn-reset {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-reset:hover {
+            background: #e0a800;
+        }
+        .rules-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .rule-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            border-left: 4px solid #007bff;
+        }
+        .no-rules {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .add-rule-form {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        .form-group label {
+            display: inline-block;
+            width: 100px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
     </style>
 </head>
 <body>
-    <h1>UFW Web Manager</h1>
-    <a href="/logout">Logout</a>
-    
-    <div class="status {{ 'active' if status.active else 'inactive' }}">
-        UFW Status: {{ 'Active' if status.active else 'Inactive' }}
+    <div class="header">
+        <h1>UFW Web Manager</h1>
+        <p>Manage your Ubuntu Firewall (UFW) through this web interface</p>
     </div>
     
-    <h3>Quick Actions</h3>
-    <button onclick="toggleUFW('enable')">Enable UFW</button>
-    <button onclick="toggleUFW('disable')">Disable UFW</button>
+    <div class="navigation">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('logs') }}">View Logs</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
     
-    <h3>Current Rules</h3>
-    <ul>
-    {% for rule in status.rules %}
-        <li>{{ rule }}</li>
-    {% endfor %}
-    </ul>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="status {{ 'active' if status.active else 'inactive' }}">
+        🔥 UFW Status: {{ 'ACTIVE' if status.active else 'INACTIVE' }}
+    </div>
+    
+    <div class="actions">
+        <h3>Quick Actions</h3>
+        <button class="btn-enable" onclick="toggleUFW('enable')">🟢 Enable UFW</button>
+        <button class="btn-disable" onclick="toggleUFW('disable')">🔴 Disable UFW</button>
+        <button class="btn-reset" onclick="resetUFW()">🔄 Reset UFW</button>
+    </div>
+    
+    <div class="rules-section">
+        <h3>Current Firewall Rules</h3>
+        {% if status.rules %}
+            {% for rule in status.rules %}
+                <div class="rule-item">{{ rule }}</div>
+            {% endfor %}
+        {% else %}
+            <div class="no-rules">No firewall rules configured</div>
+        {% endif %}
+        
+        <div class="add-rule-form">
+            <h4>Add New Rule</h4>
+            <form onsubmit="addRule(event)">
+                <div class="form-group">
+                    <label>Action:</label>
+                    <select id="action" required>
+                        <option value="allow">Allow</option>
+                        <option value="deny">Deny</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target:</label>
+                    <input type="text" id="target" placeholder="e.g., 22/tcp, 80, ssh" required>
+                </div>
+                <div class="form-group">
+                    <label>Comment:</label>
+                    <input type="text" id="comment" placeholder="Optional description">
+                </div>
+                <button type="submit" style="background: #17a2b8; color: white;">Add Rule</button>
+            </form>
+        </div>
+    </div>
     
     <script>
     function toggleUFW(action) {
-        fetch('/api/toggle', {
+        if (confirm(`Are you sure you want to ${action} UFW?`)) {
+            fetch('/api/toggle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Network error: ' + error);
+            });
+        }
+    }
+    
+    function resetUFW() {
+        if (confirm('Are you sure you want to reset UFW? This will remove all rules!')) {
+            fetch('/api/reset', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Network error: ' + error);
+            });
+        }
+    }
+    
+    function addRule(event) {
+        event.preventDefault();
+        
+        const action = document.getElementById('action').value;
+        const target = document.getElementById('target').value;
+        const comment = document.getElementById('comment').value;
+        
+        fetch('/api/add_rule', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action: action})
-        }).then(() => location.reload());
+            body: JSON.stringify({
+                action: action,
+                target: target,
+                comment: comment
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Network error: ' + error);
+        });
     }
+    
+    // Auto-refresh status every 30 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
     </script>
 </body>
 </html>
