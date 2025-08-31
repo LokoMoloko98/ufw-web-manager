@@ -57,7 +57,7 @@ class UFWManager:
         """Get UFW status and rules"""
         result = UFWManager.run_command('sudo ufw status verbose')
         if not result['success']:
-            return {'active': False, 'rules': [], 'error': result['error']}
+            return {'active': False, 'rules': [], 'numbered_rules': [], 'error': result['error']}
         
         output = result['output']
         active = 'Status: active' in output
@@ -68,7 +68,32 @@ class UFWManager:
             if '->' in line or 'ALLOW' in line or 'DENY' in line:
                 rules.append(line.strip())
         
-        return {'active': active, 'rules': rules, 'error': None}
+        # Also get numbered rules for deletion
+        numbered_result = UFWManager.run_command('sudo ufw status numbered')
+        numbered_rules = []
+        if numbered_result['success']:
+            numbered_lines = numbered_result['output'].split('\n')
+            for line in numbered_lines:
+                # Look for lines that start with [ followed by a number
+                line = line.strip()
+                if line.startswith('[') and ']' in line:
+                    # Extract rule number and rule text
+                    match = re.match(r'\[\s*(\d+)\s*\]\s*(.*)', line)
+                    if match:
+                        rule_number = match.group(1)
+                        rule_text = match.group(2).strip()
+                        if rule_text:  # Only add non-empty rules
+                            numbered_rules.append({
+                                'number': rule_number,
+                                'rule': rule_text
+                            })
+        
+        return {
+            'active': active, 
+            'rules': rules, 
+            'numbered_rules': numbered_rules,
+            'error': None
+        }
     
     @staticmethod
     def enable():
@@ -102,9 +127,27 @@ class UFWManager:
         """Delete a UFW rule by number"""
         try:
             rule_num = int(rule_number)
-            return UFWManager.run_command(f'sudo ufw --force delete {rule_num}')
+            if rule_num <= 0:
+                return {'success': False, 'error': 'Rule number must be positive'}
+            
+            # First check if the rule exists by getting current status
+            status = UFWManager.get_status()
+            if not status['numbered_rules']:
+                return {'success': False, 'error': 'No rules to delete'}
+            
+            # Check if the rule number exists
+            rule_numbers = [int(rule['number']) for rule in status['numbered_rules']]
+            if rule_num not in rule_numbers:
+                return {'success': False, 'error': f'Rule #{rule_num} does not exist'}
+            
+            result = UFWManager.run_command(f'sudo ufw --force delete {rule_num}')
+            if result['success']:
+                return {'success': True, 'output': f'Rule #{rule_num} deleted successfully'}
+            else:
+                return {'success': False, 'error': result['error'] or 'Failed to delete rule'}
+                
         except ValueError:
-            return {'success': False, 'error': 'Invalid rule number'}
+            return {'success': False, 'error': 'Invalid rule number format'}
     
     @staticmethod
     def reset():
