@@ -32,12 +32,11 @@ class UFWManager:
     """Class to handle UFW operations"""
     
     @staticmethod
-    def run_command(command):
-        """Execute UFW command safely"""
+    def run_command(command_list):
+        """Execute UFW command safely by passing a list of arguments"""
         try:
             result = subprocess.run(
-                command, 
-                shell=True, 
+                command_list, 
                 capture_output=True, 
                 text=True, 
                 timeout=10
@@ -55,7 +54,7 @@ class UFWManager:
     @staticmethod
     def get_status():
         """Get UFW status and rules"""
-        result = UFWManager.run_command('sudo ufw status verbose')
+        result = UFWManager.run_command(['sudo', 'ufw', 'status', 'verbose'])
         if not result['success']:
             return {'active': False, 'rules': [], 'numbered_rules': [], 'error': result['error']}
         
@@ -69,7 +68,7 @@ class UFWManager:
                 rules.append(line.strip())
         
         # Also get numbered rules for deletion
-        numbered_result = UFWManager.run_command('sudo ufw status numbered')
+        numbered_result = UFWManager.run_command(['sudo', 'ufw', 'status', 'numbered'])
         numbered_rules = []
         if numbered_result['success']:
             numbered_lines = numbered_result['output'].split('\n')
@@ -98,29 +97,75 @@ class UFWManager:
     @staticmethod
     def enable():
         """Enable UFW"""
-        return UFWManager.run_command('sudo ufw --force enable')
+        return UFWManager.run_command(['sudo', 'ufw', '--force', 'enable'])
     
     @staticmethod
     def disable():
         """Disable UFW"""
-        return UFWManager.run_command('sudo ufw disable')
+        return UFWManager.run_command(['sudo', 'ufw', 'disable'])
     
     @staticmethod
-    def add_rule(action, target, comment=None):
-        """Add a UFW rule"""
+    def add_rule(action, net_protocol, transport_protocol, port, source_ip='any', dest_ip='any', comment=None):
+        """Add a comprehensive UFW rule with full from/to syntax"""
         # Validate input
         if action not in ['allow', 'deny']:
             return {'success': False, 'error': 'Invalid action'}
         
-        # Basic validation for target
-        if not re.match(r'^[a-zA-Z0-9\.\/:_-]+$', target):
-            return {'success': False, 'error': 'Invalid target format'}
+        if net_protocol not in ['any', 'ipv4', 'ipv6']:
+            return {'success': False, 'error': 'Invalid network protocol. Must be any, ipv4, or ipv6'}
+            
+        if transport_protocol not in ['any', 'tcp', 'udp']:
+            return {'success': False, 'error': 'Invalid transport protocol. Must be any, tcp, or udp'}
         
-        command = f'sudo ufw {action} {target}'
+        # Validate port
+        if not re.match(r'^[a-zA-Z0-9\:_-]+$', port):
+            return {'success': False, 'error': 'Invalid port format'}
+        
+        # Build UFW command using from/to syntax
+        command_parts = ['sudo', 'ufw', action]
+        
+        # Build UFW command using ALWAYS the full from/to syntax
+        command_parts = ['sudo', 'ufw', action]
+        
+        # Handle source - always specify from
+        if source_ip == 'any':
+            if net_protocol == 'ipv6':
+                source = '::/0'  # IPv6 equivalent of 0.0.0.0/0
+            elif net_protocol == 'ipv4':
+                source = '0.0.0.0/0'  # IPv4 any
+            else:  # any protocol
+                source = '0.0.0.0/0'  # Default to IPv4 any
+        else:
+            source = source_ip
+        
+        # Handle destination - always specify to  
+        if dest_ip == 'any':
+            dest = 'any'
+        else:
+            dest = dest_ip
+        
+        # ALWAYS use from/to syntax
+        command_parts.extend(['from', source, 'to', dest])
+        
+        # Add port specification
+        command_parts.extend(['port', port])
+        
+        # Add protocol specification
+        if transport_protocol != 'any':
+            command_parts.extend(['proto', transport_protocol])
+        
+        # Add comment if provided
         if comment:
-            command += f' comment "{comment}"'
+            proto_comment = f" ({net_protocol.upper()}" + (f"/{transport_protocol.upper()}" if transport_protocol != 'any' else "") + ")"
+            comment_text = f"{comment}{proto_comment}"
+            command_parts.extend(['comment', comment_text])
         
-        return UFWManager.run_command(command)
+        # Debug: Print the command being executed
+        print(f"DEBUG: Executing UFW command: {' '.join(command_parts)}")
+        
+        result = UFWManager.run_command(command_parts)
+        print(f"DEBUG: UFW command result: {result}")
+        return result
     
     @staticmethod
     def delete_rule(rule_number):
@@ -135,19 +180,34 @@ class UFWManager:
             if not status['numbered_rules']:
                 return {'success': False, 'error': 'No rules to delete'}
             
-            # Check if the rule number exists
-            rule_numbers = [int(rule['number']) for rule in status['numbered_rules']]
-            if rule_num not in rule_numbers:
-                return {'success': False, 'error': f'Rule #{rule_num} does not exist'}
+            # Find the rule to confirm its existence
+            rule_exists = any(r['number'] == str(rule_num) for r in status['numbered_rules'])
+            if not rule_exists:
+                return {'success': False, 'error': f'Rule {rule_num} not found'}
             
-            result = UFWManager.run_command(f'sudo ufw --force delete {rule_num}')
-            if result['success']:
-                return {'success': True, 'output': f'Rule #{rule_num} deleted successfully'}
-            else:
-                return {'success': False, 'error': result['error'] or 'Failed to delete rule'}
-                
+            # Use subprocess to auto-confirm the deletion prompt by piping 'yes'
+            p1 = subprocess.Popen(['yes'], stdout=subprocess.PIPE)
+            p2 = subprocess.Popen(
+                ['sudo', 'ufw', 'delete', str(rule_num)],
+                stdin=p1.stdout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
+            
+            output, error = p2.communicate(timeout=10)
+            
+            return {
+                'success': p2.returncode == 0,
+                'output': output.strip(),
+                'error': error.strip()
+            }
+            
         except ValueError:
-            return {'success': False, 'error': 'Invalid rule number format'}
+            return {'success': False, 'error': 'Invalid rule number'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
     
     @staticmethod
     def reset():
@@ -245,16 +305,28 @@ def api_toggle():
 @app.route('/api/add_rule', methods=['POST'])
 @login_required
 def api_add_rule():
-    """API endpoint to add a rule"""
+    """API endpoint to add a comprehensive rule"""
     data = request.json
     action = data.get('action')
-    target = data.get('target')
+    net_protocol = data.get('net_protocol', 'any')
+    transport_protocol = data.get('transport_protocol', 'any')
+    port = data.get('port')
+    source_ip = data.get('source_ip', 'any')
+    dest_ip = data.get('dest_ip', 'any')
     comment = data.get('comment', '')
     
-    if not action or not target:
-        return jsonify({'success': False, 'error': 'Missing required fields'})
+    if not action or not port:
+        return jsonify({'success': False, 'error': 'Action and port are required'})
     
-    result = UFWManager.add_rule(action, target, comment)
+    result = UFWManager.add_rule(
+        action=action,
+        net_protocol=net_protocol,
+        transport_protocol=transport_protocol,
+        port=port,
+        source_ip=source_ip,
+        dest_ip=dest_ip,
+        comment=comment
+    )
     return jsonify(result)
 
 @app.route('/api/delete_rule', methods=['POST'])
