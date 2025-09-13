@@ -236,8 +236,8 @@
         .pw-wrapper input { flex:1; padding-right: 46px; }
         .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: none; background: rgba(255,255,255,0.08); color: var(--color-text-muted); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; transition: var(--transition); }
         .pw-toggle:hover { background: rgba(255,255,255,0.14); color: var(--color-text); }
-    .pw-toggle.active { background: var(--gradient-fire); color:#fff; box-shadow: var(--shadow-glow); }
-    /* Modal System */
+        .pw-toggle.active { background: var(--gradient-fire); color:#fff; box-shadow: var(--shadow-glow); }
+        /* Modal System */
     .modal-backdrop { position: fixed; inset:0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 500; opacity:0; pointer-events:none; transition: var(--transition); }
     .modal-backdrop.active { opacity:1; pointer-events: all; }
     .modal { width: 100%; max-width: 460px; background: linear-gradient(180deg, rgba(34,34,37,0.92), rgba(30,30,33,0.88)); border:1px solid var(--color-border-soft); border-radius: var(--radius); padding: 24px 26px 26px; position: relative; box-shadow: 0 0 0 1px rgba(255,122,22,0.15), 0 20px 60px -18px rgba(0,0,0,0.7); animation: modalIn .35s cubic-bezier(.4,.0,.2,1); }
@@ -261,10 +261,10 @@
 <body class="{% block body_class %}{% endblock %}">
     <div class="app-shell">
         <header class="navbar">
-            <div class="brand">
+            <a href="{{ url_for('index') }}" class="brand" style="text-decoration: none; color: inherit;">
                 <div class="logo-circle">🔥</div>
                 <span>UFW Web Manager</span>
-            </div>
+            </a>
             <nav class="main-nav">
                 {% if current_user.is_authenticated or disable_auth %}
                     <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
