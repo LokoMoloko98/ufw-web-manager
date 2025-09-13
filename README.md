@@ -17,7 +17,7 @@ A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/
 - 🗑️ **Delete Rules** by number with one click
 - 📊 **Live Log Viewer** (tail of UFW-related syslog lines)
 - � **Reset Firewall** to defaults (`ufw --force reset`)
-- 🔐 **Session-Based Authentication** with configurable timeout
+- 🔐 **SQLite + bcrypt Authentication** (Flask-Login) with optional auth bypass for future external SSO
 
 ## Requirements
 
@@ -39,25 +39,59 @@ sudo ./install.sh
 
 # Start the app
 sudo ./start.sh
+
+# (First run will create .env from .env.sample if missing. Edit .env to set ADMIN_DEFAULT_PASSWORD before next restart.)
 ```
 Then browse to: http://localhost:5000
 
-Manual (alternative):
+Manual (alternative — only if you don't want to use the helper scripts):
 ```bash
 git clone https://github.com/LokoMoloko98/ufw-web-manager.git
 cd ufw-web-manager
 sudo apt update
-sudo apt install -y ufw python3-pip
-pip3 install -r requirements.txt
-sudo python3 app.py
+sudo apt install -y ufw python3-pip python3-venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+sudo ADMIN_DEFAULT_PASSWORD='change-me-now' python3 app.py
 ```
 
-## Default Credentials
+## Authentication
 
-- **Username:** `admin`
-- **Password:** `ufw-admin-2024`
+The app now uses:
 
-**⚠️ Important:** Change the default password after the first login for security! You can do this by generating a new hash and updating the `ADMIN_PASSWORD_HASH` variable in `app.py`.
+- Flask-Login session management
+- SQLite user store (`auth.db` in project root)
+- Single admin user (`admin`) auto-created on first run
+- bcrypt password hashing
+
+### Default Admin Password
+If no database exists on first start, a default `admin` user is created.
+
+Set an environment variable before first launch to override the default password:
+```bash
+export ADMIN_DEFAULT_PASSWORD='MyStrongerPassword!'
+sudo -E ./start.sh
+```
+If you forgot to set it, immediately log in with the printed default and navigate to: Change Password.
+
+### Change Password (web)
+Use the UI link (Change Password) once logged in.
+
+### Change Password (CLI / recovery)
+If locked out, remove `auth.db` (recreates with default credentials):
+```bash
+rm auth.db
+export ADMIN_DEFAULT_PASSWORD='NewTempPass123!'
+sudo -E ./start.sh
+```
+
+### External Authentication / Future SSO
+You can bypass built-in auth (e.g., placing behind Authentik / reverse proxy) by setting:
+```bash
+export DISABLE_AUTH=1
+```
+In this mode the app trusts upstream access control — never expose it publicly like this without a protecting layer.
 
 ## Usage
 
@@ -108,7 +142,7 @@ ufw deny out to any port 53 proto udp
 ## Security Notes
 
 - Requires sudo for UFW — consider creating a restricted sudoers entry for the web app user
-- Change the default password immediately (edit `ADMIN_PASSWORD_HASH` in `app.py`)
+- Set `ADMIN_DEFAULT_PASSWORD` before first run or change it immediately via the UI
 - Use HTTPS (via reverse proxy) if exposing beyond localhost
 - Limit network exposure of the management port (e.g., bind to localhost + SSH tunnel)
 - Logs may contain IP addresses; handle accordingly
@@ -139,9 +173,12 @@ ufw-web-manager/
 ## Configuration
 
 Edit the `CONFIG` dictionary in `app.py` to customize:
-- Host and port settings
-- Session timeout
+- Host / port
 - Debug mode
+
+Environment variables:
+- `ADMIN_DEFAULT_PASSWORD` — sets initial admin password on first DB creation
+- `DISABLE_AUTH=1` — bypass auth (for trusted reverse proxy + external IdP only)
 
 ## Troubleshooting
 
@@ -164,14 +201,14 @@ If logs are empty, ensure UFW logging is enabled:
 sudo ufw logging on
 ```
 
-## Potential Improvements
+## Potential Improvements / Roadmap
 
 - Rule editing (inline)
 - Bulk operations (multi-select delete)
 - Tag-based filtering & search
 - Dark mode UI
 - Optional app profile picker
-- API token authentication
+- API token / external auth integration (Authentik planned)
 - Dockerfile & systemd unit
 
 Contributions & suggestions welcome — open an issue or PR.

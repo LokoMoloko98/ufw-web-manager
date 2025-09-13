@@ -30,9 +30,42 @@ if ! python3 -c "import flask" 2>/dev/null; then
     exit 1
 fi
 
+ENV_FILE=".env"
+SAMPLE_FILE=".env.sample"
+
+# Prepare environment file
+if [ ! -f "$ENV_FILE" ]; then
+    if [ -f "$SAMPLE_FILE" ]; then
+        echo "📄 No .env found; copying from .env.sample"
+        cp "$SAMPLE_FILE" "$ENV_FILE"
+    else
+        echo "⚠️  No .env or .env.sample present; creating minimal .env"
+        cat > "$ENV_FILE" <<EOF
+ADMIN_DEFAULT_PASSWORD=ufw-admin-2024
+HOST=0.0.0.0
+PORT=5000
+DEBUG=0
+DISABLE_AUTH=0
+EOF
+    fi
+fi
+
+# Load environment variables
+set -a
+source "$ENV_FILE"
+set +a
+
+echo "🔐 Admin default password source: .env (used only if auth.db not yet created)"
+if [ "${DISABLE_AUTH}" = "1" ]; then
+  echo "⚠️  Authentication DISABLED via DISABLE_AUTH=1 — ensure external protection!"
+fi
+
 echo "✅ Starting UFW Web Manager..."
 echo "   Press Ctrl+C to stop the server"
 echo ""
 
-# Start the Flask application
+# Pass host/port/debug via environment (if app.py ever reads them from env later)
+export ADMIN_DEFAULT_PASSWORD
+export DISABLE_AUTH
+
 python3 app.py
