@@ -386,7 +386,8 @@ class UFWManager:
     def get_logs():
         """Get UFW logs"""
         # Use shell pipeline via string for grep + tail (run_command handles string with shell=True)
-        result = UFWManager.run_command('sudo grep UFW /var/log/syslog | tail -50')
+        # No sudo needed since appuser is in adm group and can read log files
+        result = UFWManager.run_command('grep UFW /var/log/syslog | tail -50')
         if result['success']:
             return result['output'].split('\n')
         return []
@@ -410,6 +411,11 @@ def index():
     if os.getenv('DISABLE_AUTH') == '1' or current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
+
+@app.route('/healthz')
+def health_check():
+    """Health check endpoint for Docker"""
+    return {'status': 'healthy', 'service': 'ufw-web-manager'}, 200
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
