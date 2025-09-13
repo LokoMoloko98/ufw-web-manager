@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}UFW Web Manager{% endblock %}</title>
+    <meta name="theme-color" content="#ff6b00" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'><text y='50%' x='50%' dominant-baseline='middle' text-anchor='middle' font-size='60'>🔥</text></svg>">
+    <style>
+        :root {
+            /* Core palette (slightly lightened neutrals) */
+            --color-fire-1: #ff7a16; /* lighter than #ff6b00 */
+            --color-fire-2: #ff4040; /* keep strong ember red */
+            --color-brick-1: #a3402d; /* lightened brick */
+            --color-brick-2: #c95a3c; /* light mortar tone */
+            --color-charcoal: #1a1a1c;
+            --color-bg: #202123; /* was #181818 */
+            --color-bg-alt: #26272a;
+            --color-surface: #2a2c2f; /* was #222225 */
+            --color-surface-alt: #313337; /* was #2c2c30 */
+            --color-paper: #f8f7f6; /* light surfaces for optional mix */
+            --color-border: #424449; /* slightly lighter */
+            --color-border-soft: #3a3c41;
+            --color-text: #f7f7f8;
+            --color-text-soft: #e2e2e4;
+            --color-text-muted: #b4b6be; /* was #a9a9b2 */
+            --color-success: #31d87a;
+            --color-danger: #ff5b5d;
+            --color-warning: #ffca2c;
+            --gradient-fire: linear-gradient(135deg, var(--color-fire-1), var(--color-fire-2));
+            --gradient-brick: linear-gradient(135deg, var(--color-brick-1), var(--color-brick-2));
+            --radius-sm: 4px;
+            --radius: 10px;
+            --radius-lg: 18px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
+            --shadow: 0 4px 18px -4px rgba(0,0,0,0.55);
+            --shadow-glow: 0 0 0 1px rgba(255,122,22,0.18), 0 0 14px -2px rgba(255,90,0,0.38);
+            --transition: 0.25s cubic-bezier(.4,.0,.2,1);
+        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+            background:
+                radial-gradient(circle at 18% 22%, rgba(255,122,22,0.10), transparent 60%),
+                radial-gradient(circle at 85% 12%, rgba(255,64,64,0.08), transparent 55%),
+                linear-gradient(135deg, #27201d, #1f1c1a 65%);
+            color: var(--color-text);
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: #ff8740; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        h1, h2, h3, h4 { font-weight: 600; letter-spacing: .5px; }
+
+        /* Layout */
+        .app-shell {
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        header.navbar {
+            background: linear-gradient(90deg, rgba(255,122,22,0.22), rgba(255,64,64,0.18));
+            backdrop-filter: blur(8px) saturate(130%);
+            border-bottom: 1px solid rgba(255,255,255,0.10);
+            padding: 12px 26px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: .5px;
+        }
+        .brand .logo-circle {
+            width: 40px; height: 40px;
+            background: var(--gradient-fire);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: var(--shadow-glow);
+        }
+        nav.main-nav a {
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            color: var(--color-text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            transition: var(--transition);
+        }
+        nav.main-nav a:hover, nav.main-nav a.active {
+            color: var(--color-text);
+            background: rgba(255,255,255,0.06);
+        }
+        nav.main-nav a.active::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -6px;
+            width: 18px;
+            height: 3px;
+            background: var(--gradient-fire);
+            border-radius: 2px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 0 1px rgba(255,107,0,0.4);
+        }
+
+        main.page {
+            flex: 1;
+            width: 100%;
+            max-width: 1250px;
+            margin: 30px auto 70px;
+            padding: 0 28px;
+        }
+
+        footer.site-footer {
+            text-align: center;
+            padding: 25px 15px 50px;
+            font-size: 12px;
+            color: var(--color-text-muted);
+            opacity: .85;
+        }
+
+        /* Components */
+        .card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025));
+            border: 1px solid var(--color-border-soft);
+            border-radius: var(--radius);
+            padding: 24px 26px 26px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 85% 15%, rgba(255,92,0,0.15), transparent 60%);
+            pointer-events: none;
+        }
+        .grid { display: grid; gap: 28px; }
+        .grid.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+        .status-tile {
+            display: flex; flex-direction: column; gap: 8px;
+            align-items: flex-start;
+        }
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 14px 6px 10px; border-radius: 100px;
+            background: rgba(255,255,255,0.12);
+            font-size: 13px; letter-spacing: .5px;
+            font-weight: 500;
+        }
+        .status-pill.active { box-shadow: 0 0 0 1px rgba(46,204,113,0.5), 0 0 8px -1px rgba(46,204,113,0.6); color: #d8ffe9; }
+        .status-pill.inactive { box-shadow: 0 0 0 1px rgba(255,77,79,0.55), 0 0 8px -1px rgba(255,77,79,0.6); color: #ffdada; }
+
+        .btn { cursor: pointer; user-select: none; border: none; font-family: inherit; font-size: 14px; font-weight: 600; padding: 11px 18px; border-radius: var(--radius-sm); line-height: 1.1; display: inline-flex; align-items: center; gap: 8px; position: relative; transition: var(--transition); letter-spacing: .4px; }
+        .btn:focus-visible { outline: 2px solid #ff8740; outline-offset: 2px; }
+        .btn-primary { background: var(--gradient-fire); color: #fff; box-shadow: var(--shadow-glow); }
+        .btn-primary:hover { filter: brightness(1.08); transform: translateY(-2px); }
+        .btn-danger { background: linear-gradient(135deg,#ff3b30,#b91010); color: #fff; box-shadow: 0 0 0 1px rgba(255,77,79,0.4), 0 0 12px -2px rgba(255,77,79,0.5); }
+        .btn-danger:hover { filter: brightness(1.05); transform: translateY(-2px); }
+        .btn-warning { background: linear-gradient(135deg,#ffb300,#ff8800); color: #181818; font-weight: 700; }
+    .btn-outline { background: rgba(255,255,255,0.08); color: var(--color-text); border: 1px solid var(--color-border-soft); }
+    .btn-outline:hover { background: rgba(255,255,255,0.14); }
+        .btn-ghost { background: transparent; color: var(--color-text-muted); }
+        .btn-ghost:hover { color: var(--color-text); background: rgba(255,255,255,0.06); }
+        .btn-small { padding: 6px 10px; font-size: 12px; }
+
+        .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); margin: 28px 0; border: none; }
+
+        form .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; }
+        form label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; color: var(--color-text-muted); }
+    form input, form select { background: #222427; border: 1px solid var(--color-border-soft); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; color: var(--color-text); font-family: inherit; transition: var(--transition); }
+        form input:focus, form select:focus { border-color: #ff6b00; box-shadow: 0 0 0 1px #ff6b00; outline: none; }
+        small.help { color: var(--color-text-muted); font-size: 11px; display: block; margin-top: 4px; }
+
+        table.rules { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        table.rules thead th { text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; font-size: 11px; color: var(--color-text-muted); padding: 10px 10px 8px; border-bottom: 1px solid var(--color-border); }
+        table.rules tbody td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        table.rules tbody tr { transition: var(--transition); }
+    table.rules tbody tr:hover { background: rgba(255,255,255,0.08); }
+
+        .rule-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 4px 8px; border-radius: 40px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.08); }
+        .rule-badge.allow { color: #c8fddd; box-shadow: 0 0 0 1px rgba(46,204,113,0.4); }
+        .rule-badge.deny { color: #ffdada; box-shadow: 0 0 0 1px rgba(255,77,79,0.5); }
+
+        .flash-container { position: fixed; top: 74px; right: 20px; width: 340px; display: flex; flex-direction: column; gap: 12px; z-index: 100; }
+        .flash { padding: 14px 16px 14px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.4; backdrop-filter: blur(8px); background: linear-gradient(135deg, rgba(34,34,37,0.85), rgba(42,42,45,0.6)); border: 1px solid var(--color-border); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .flash::before { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,107,0,0.15), transparent 60%); opacity: 0.7; }
+        .flash-success { box-shadow: 0 0 0 1px rgba(46,204,113,0.45), 0 0 0 3px rgba(46,204,113,0.15); }
+        .flash-error { box-shadow: 0 0 0 1px rgba(255,77,79,0.55), 0 0 0 3px rgba(255,77,79,0.2); }
+        .flash-warning { box-shadow: 0 0 0 1px rgba(255,193,7,0.55), 0 0 0 3px rgba(255,193,7,0.2); }
+
+        .center-screen { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 120px); padding: 40px 20px; }
+        .auth-card { width: 100%; max-width: 430px; }
+        .auth-card h2 { margin: 0 0 6px; font-size: 26px; }
+        .muted { color: var(--color-text-muted); font-size: 13px; }
+
+    .gradient-fire { background: var(--gradient-fire); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .inline-badge { background: rgba(255,255,255,0.08); padding: 2px 8px 3px; border-radius: 30px; font-size: 11px; letter-spacing: .5px; }
+
+        .rule-groups { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(370px, 1fr)); margin-top: 20px; }
+        .rule-list-card h3 { margin: 0 0 14px; font-size: 15px; letter-spacing: .5px; text-transform: uppercase; font-weight: 600; color: var(--color-text-muted); }
+    .rule-item { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--color-border-soft); background: #25272a; padding: 12px 14px 12px 14px; border-radius: var(--radius-sm); position: relative; transition: var(--transition); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 1.4; }
+    .rule-item:hover { background: #2d3034; }
+        .rule-item .num { min-width: 34px; height: 26px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); font-weight: 600; border-radius: 6px; font-size: 11px; }
+        .rule-item .actions { margin-left: auto; display: flex; gap: 8px; }
+        .rule-item button { font-size: 11px; padding: 4px 8px; }
+        .empty { opacity: .6; font-style: italic; padding: 14px 4px; }
+
+        /* Scrollbars (webkit) */
+        ::-webkit-scrollbar { width: 11px; }
+    ::-webkit-scrollbar-track { background: #222325; }
+    ::-webkit-scrollbar-thumb { background: #404247; border-radius: 20px; border: 2px solid #222325; }
+    ::-webkit-scrollbar-thumb:hover { background: #4b4e54; }
+
+        @media (max-width: 780px) {
+            header.navbar { flex-wrap: wrap; gap: 14px; }
+            main.page { padding: 0 18px; margin-top: 22px; }
+            .rule-groups { grid-template-columns: 1fr; }
+        }
+        /* Password visibility toggle */
+        .pw-wrapper { position: relative; display: flex; align-items: stretch; }
+        .pw-wrapper input { flex:1; padding-right: 46px; }
+        .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: none; background: rgba(255,255,255,0.08); color: var(--color-text-muted); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; transition: var(--transition); }
+        .pw-toggle:hover { background: rgba(255,255,255,0.14); color: var(--color-text); }
+        .pw-toggle.active { background: var(--gradient-fire); color:#fff; box-shadow: var(--shadow-glow); }
+        /* Modal System */
+    .modal-backdrop { position: fixed; inset:0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 500; opacity:0; pointer-events:none; transition: var(--transition); }
+    .modal-backdrop.active { opacity:1; pointer-events: all; }
+    .modal { width: 100%; max-width: 460px; background: linear-gradient(180deg, rgba(34,34,37,0.92), rgba(30,30,33,0.88)); border:1px solid var(--color-border-soft); border-radius: var(--radius); padding: 24px 26px 26px; position: relative; box-shadow: 0 0 0 1px rgba(255,122,22,0.15), 0 20px 60px -18px rgba(0,0,0,0.7); animation: modalIn .35s cubic-bezier(.4,.0,.2,1); }
+    @keyframes modalIn { from { transform: translateY(14px) scale(.97); opacity:0; } to { transform: translateY(0) scale(1); opacity:1; } }
+    .modal-header { display:flex; gap:12px; align-items:flex-start; margin:0 0 12px; }
+    .modal-header h3 { margin:0; font-size:18px; font-weight:600; letter-spacing:.5px; }
+    .modal-body { font-size:14px; line-height:1.5; color: var(--color-text-soft); }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+    .modal-close { position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.08); border:none; color:var(--color-text-muted); width:34px; height:34px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition: var(--transition); }
+    .modal-close:hover { background: rgba(255,255,255,0.14); color: var(--color-text); }
+    .modal-icon { font-size:30px; line-height:1; filter: drop-shadow(0 4px 12px rgba(255,107,0,0.35)); }
+    .modal-danger .modal-icon { filter: drop-shadow(0 4px 12px rgba(255,77,79,0.5)); }
+    .modal-danger { box-shadow: 0 0 0 1px rgba(255,77,79,0.25), 0 16px 50px -18px rgba(0,0,0,0.7); }
+    .modal-warning { box-shadow: 0 0 0 1px rgba(255,193,7,0.25), 0 16px 50px -18px rgba(0,0,0,0.7); }
+    .modal-success { box-shadow: 0 0 0 1px rgba(46,204,113,0.4), 0 16px 50px -18px rgba(0,0,0,0.7); }
+    .hidden { display:none !important; }
+    .no-scroll { overflow:hidden; }
+
+    /* Rules Table Styles */
+    .rules-table-container { overflow-x: auto; margin-top: 8px; }
+    .rules-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rules-table th { background: var(--color-surface-alt); color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 10px 8px; text-align: left; border-bottom: 2px solid var(--color-border); position: sticky; top: 0; }
+    .rules-table td { padding: 12px 8px; border-bottom: 1px solid var(--color-border-soft); vertical-align: middle; }
+    .rules-table tbody tr { transition: var(--transition); }
+    .rules-table tbody tr:hover { background: rgba(255,122,22,0.05); }
+    
+    .rule-number { font-weight: 600; color: var(--color-text-muted); min-width: 40px; font-family: ui-monospace, monospace; }
+    .rule-port { font-family: ui-monospace, monospace; font-weight: 500; }
+    .rule-actions { text-align: center; width: 80px; }
+    
+    /* Status Container Styles */
+    .status-horizontal { background: var(--color-surface); border: 1px solid var(--color-border-soft); }
+    
+    @media (max-width: 768px) {
+        .status-horizontal > div:first-child { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .status-horizontal > div:first-child > div:last-child { width: 100%; justify-content: flex-start; }
+    }
+    
+    /* Badge Styles */
+    .badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; margin: 1px; }
+    
+    .protocol-badge.protocol-tcp { background: rgba(52, 152, 219, 0.2); color: #5dade2; border: 1px solid rgba(52, 152, 219, 0.3); }
+    .protocol-badge.protocol-udp { background: rgba(155, 89, 182, 0.2); color: #bb8fce; border: 1px solid rgba(155, 89, 182, 0.3); }
+    .protocol-badge.protocol-any { background: rgba(149, 165, 166, 0.2); color: #aeb6bf; border: 1px solid rgba(149, 165, 166, 0.3); }
+    
+    .version-badge.version-ipv4 { background: rgba(46, 204, 113, 0.15); color: #58d68d; border: 1px solid rgba(46, 204, 113, 0.25); font-size: 9px; }
+    .version-badge.version-ipv6 { background: rgba(243, 156, 18, 0.15); color: #f7c52d; border: 1px solid rgba(243, 156, 18, 0.25); font-size: 9px; }
+    
+    .direction-badge.direction-in { background: rgba(52, 152, 219, 0.15); color: #5dade2; border: 1px solid rgba(52, 152, 219, 0.25); }
+    .direction-badge.direction-out { background: rgba(230, 126, 34, 0.15); color: #ec7063; border: 1px solid rgba(230, 126, 34, 0.25); }
+    
+    .action-badge.action-allow { background: rgba(46, 204, 113, 0.15); color: #58d68d; border: 1px solid rgba(46, 204, 113, 0.25); }
+    .action-badge.action-deny { background: rgba(231, 76, 60, 0.15); color: #ec7063; border: 1px solid rgba(231, 76, 60, 0.25); }
+    .action-badge.action-reject { background: rgba(155, 89, 182, 0.15); color: #bb8fce; border: 1px solid rgba(155, 89, 182, 0.25); }
+    
+    @media (max-width: 768px) {
+        .rules-table { font-size: 12px; }
+        .rules-table th, .rules-table td { padding: 8px 4px; }
+        .badge { font-size: 9px; padding: 3px 6px; }
+    }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <div class="app-shell">
+        <header class="navbar">
+            <a href="{{ url_for('index') }}" class="brand" style="text-decoration: none; color: inherit;">
+                <div class="logo-circle">🔥</div>
+                <span>UFW Web Manager</span>
+            </a>
+            <nav class="main-nav">
+                {% if current_user.is_authenticated or disable_auth %}
+                    <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
+                    <a href="{{ url_for('logs') }}" class="{% if request.endpoint == 'logs' %}active{% endif %}">Logs</a>
+                    <a href="{{ url_for('change_password') }}" class="{% if request.endpoint == 'change_password' %}active{% endif %}">Password</a>
+                    <a href="{{ url_for('logout') }}">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="{% if request.endpoint == 'login' %}active{% endif %}">Login</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <main class="page">
+            {% block content %}{% endblock %}
+        </main>
+        <footer class="site-footer">
+            <div>🔥🧱 UFW Web Manager &middot; Secure Firewall UI</div>
+        </footer>
+    </div>
+    {% block scripts %}{% endblock %}
+    <script>
+    // Password visibility toggles
+    (function(){
+        const toggles = document.querySelectorAll('.pw-toggle');
+        toggles.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const wrapper = btn.closest('.pw-wrapper');
+                if(!wrapper) return;
+                const input = wrapper.querySelector('.pw-input');
+                if(!input) return;
+                // For token (data-mode=text) we toggle between text and password to optionally obscure
+                const isTextMode = input.getAttribute('type') === 'text';
+                const targetType = isTextMode ? 'password' : 'text';
+                input.setAttribute('type', targetType);
+                btn.classList.toggle('active', targetType === 'text');
+                btn.setAttribute('aria-label', targetType === 'text' ? 'Hide value' : 'Show value');
+            });
+        });
+    })();
+    // Themed modal system
+    (function(){
+        const backdrop = document.createElement('div');
+        backdrop.id='modal-backdrop';
+        backdrop.className='modal-backdrop';
+        document.body.appendChild(backdrop);
+        function closeModal(force){
+            if(!backdrop.classList.contains('active') && !force) return;
+            backdrop.innerHTML='';
+            backdrop.className='modal-backdrop';
+            backdrop.setAttribute('aria-hidden','true');
+            document.documentElement.classList.remove('no-scroll');
+        }
+        function openModal({title, body, icon='🔥', variant='', confirmText='OK', cancelText=null, onConfirm=null, onCancel=null, danger=false}){
+            backdrop.innerHTML='';
+            const modal=document.createElement('div');
+            modal.className='modal '+(variant?('modal-'+variant):'')+(danger?' modal-danger':'');
+            modal.setAttribute('role','dialog');
+            modal.setAttribute('aria-modal','true');
+            modal.innerHTML=`<button class="modal-close" aria-label="Close" data-close>&times;</button>
+                <div class="modal-header">
+                    <div class="modal-icon">${icon}</div>
+                    <h3>${title}</h3>
+                </div>
+                <div class="modal-body">${body}</div>
+                <div class="modal-footer"></div>`;
+            const footer = modal.querySelector('.modal-footer');
+            if(cancelText){
+                const cancelBtn=document.createElement('button');
+                cancelBtn.className='btn btn-ghost';
+                cancelBtn.textContent=cancelText;
+                cancelBtn.addEventListener('click',()=>{ onCancel && onCancel(); closeModal(); });
+                footer.appendChild(cancelBtn);
+            }
+            const okBtn=document.createElement('button');
+            okBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+            okBtn.textContent=confirmText;
+            okBtn.addEventListener('click',()=>{ let r=true; if(onConfirm) r=onConfirm(); if(r!==false) closeModal(); });
+            footer.appendChild(okBtn);
+            backdrop.appendChild(modal);
+            backdrop.classList.add('active');
+            backdrop.setAttribute('aria-hidden','false');
+            document.documentElement.classList.add('no-scroll');
+            backdrop.addEventListener('click',e=>{ if(e.target===backdrop) closeModal(); });
+            modal.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>closeModal()));
+            setTimeout(()=>{ okBtn.focus(); },50);
+            return { close: closeModal };
+        }
+        window.ThemedModal = { open: openModal, close: closeModal, confirm(opts){ return openModal({cancelText:'Cancel', icon:'🧱', ...opts}); }, alert(opts){ return openModal({cancelText:null, icon:'🔥', ...opts}); } };
+    })();
+    </script>
+</body>
+</html>

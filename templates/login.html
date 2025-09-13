@@ -1,155 +1,35 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>UFW Web Manager - Login</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .login-container {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-            width: 100%;
-        }
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .logo h2 {
-            color: #333;
-            margin: 0;
-            font-size: 2em;
-        }
-        .logo p {
-            color: #666;
-            margin: 5px 0;
-            font-size: 0.9em;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: bold;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-            box-sizing: border-box;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .login-btn {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        .login-btn:hover {
-            transform: translateY(-2px);
-        }
-        .alert {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-        .security-note {
-            margin-top: 20px;
-            padding: 15px;
-            background: #e9ecef;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #495057;
-        }
-        .icon {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <div class="logo">
-            <div class="icon">🔥</div>
-            <h2>UFW Web Manager</h2>
-            <p>Secure Firewall Management</p>
+{% extends 'base.html' %}
+{% block title %}Login - UFW Web Manager{% endblock %}
+{% block content %}
+<div class="center-screen">
+    <div class="card auth-card" style="background: linear-gradient(180deg, rgba(34,34,37,0.85), rgba(22,22,24,0.92)); box-shadow: 0 0 0 1px rgba(255,107,0,0.15), 0 10px 40px -10px rgba(0,0,0,0.7);">
+        <div style="text-align:center; margin-bottom: 24px;">
+            <div style="font-size:54px; filter: drop-shadow(0 4px 18px rgba(255,107,0,0.45));">🔥</div>
+            <h2 class="gradient-fire" style="font-size:30px; margin: 0 0 4px;">Welcome Back</h2>
+            <div class="muted">Secure Firewall Management</div>
         </div>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
         <form method="POST">
-            <div class="form-group">
+            <div class="form-row">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="Enter username" required>
+                <input type="text" id="username" name="username" autocomplete="username" required />
             </div>
-            
-            <div class="form-group">
+            <div class="form-row">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Enter password" required>
+                <div class="pw-wrapper">
+                    <input type="password" id="password" class="pw-input" name="password" autocomplete="current-password" required />
+                    <button type="button" class="pw-toggle" aria-label="Show password">👁</button>
+                </div>
             </div>
-            
-            <button type="submit" class="login-btn">🔐 Sign In</button>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
+                <a href="{{ url_for('forgot_password') }}" class="muted" style="font-size:12px;">Forgot password?</a>
+                {% if reset_enabled %}
+                    <span class="inline-badge" style="background: rgba(46,204,113,0.15); box-shadow: 0 0 0 1px rgba(46,204,113,0.4); color:#c8fddd;">Reset Enabled</span>
+                {% else %}
+                    <span class="inline-badge" style="background: rgba(255,255,255,0.04);">Token Disabled</span>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:22px; font-size:15px;">🔐 Sign In</button>
         </form>
-        <div style="margin-top:15px; text-align:center; font-size:14px;">
-            <a href="{{ url_for('forgot_password') }}" style="color:#667eea;">Forgot password?</a><br>
-            {% if not reset_enabled %}
-                <span style="color:#999; font-size:12px;">(Enable by setting ADMIN_RESET_TOKEN in .env and restarting)</span>
-            {% else %}
-                <span style="color:#28a745; font-size:12px;">(Reset token enabled)</span>
-            {% endif %}
-        </div>
-        
-        <!-- <div class="security-note">
-            <strong>Security Notice:</strong><br>
-            Default admin user auto-created on first run.<br>
-            Set ADMIN_DEFAULT_PASSWORD in .env before first start or change it after login.
-        </div> -->
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

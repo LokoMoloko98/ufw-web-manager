@@ -1,353 +1,312 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>UFW Web Manager - Dashboard</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            background-color: #f5f5f5;
-        }
-        .header {
-            background: #007bff;
-            color: white;
-            padding: 20px;
-            margin: -20px -20px 20px -20px;
-            border-radius: 0 0 10px 10px;
-        }
-        .navigation {
-            margin-bottom: 20px;
-        }
-        .navigation a {
-            padding: 10px 15px;
-            margin-right: 10px;
-            background: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-        }
-        .navigation a:hover {
-            background: #0056b3;
-        }
-        .status { 
-            padding: 20px; 
-            margin: 10px 0; 
-            border-radius: 10px; 
-            font-size: 1.2em;
-            font-weight: bold;
-            text-align: center;
-        }
-        .active { 
-            background: #d4edda; 
-            color: #155724; 
-            border: 2px solid #28a745;
-        }
-        .inactive { 
-            background: #f8d7da; 
-            color: #721c24; 
-            border: 2px solid #dc3545;
-        }
-        .actions {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        button { 
-            padding: 12px 20px; 
-            margin: 5px; 
-            cursor: pointer; 
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-        .btn-enable {
-            background: #28a745;
-            color: white;
-        }
-        .btn-enable:hover {
-            background: #218838;
-        }
-        .btn-disable {
-            background: #dc3545;
-            color: white;
-        }
-        .btn-disable:hover {
-            background: #c82333;
-        }
-        .btn-reset {
-            background: #ffc107;
-            color: #212529;
-        }
-        .btn-reset:hover {
-            background: #e0a800;
-        }
-        .rules-section {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .rule-item {
-            padding: 15px;
-            margin: 10px 0;
-            background: #f8f9fa;
-            border-radius: 8px;
-            font-family: monospace;
-            border-left: 4px solid #007bff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-        .rule-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transform: translateX(5px);
-        }
-        .rule-text {
-            flex-grow: 1;
-            font-size: 14px;
-        }
-        .rule-number {
-            background: #007bff;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        .delete-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-left: 10px;
-            transition: all 0.3s ease;
-        }
-        .delete-btn:hover {
-            background: #c82333;
-            transform: scale(1.05);
-        }
-        .no-rules {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-        }
-        .add-rule-form {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-        .form-group {
-            margin: 10px 0;
-        }
-        .form-group label {
-            display: inline-block;
-            width: 100px;
-            font-weight: bold;
-        }
-        .form-group input, .form-group select {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            width: 200px;
-        }
-        .alert {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>UFW Web Manager</h1>
-        <p>Manage your Ubuntu Firewall (UFW) through this web interface</p>
-    </div>
-    
-    <div class="navigation">
-        <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('logs') }}">View Logs</a>
-        <a href="{{ url_for('change_password') }}">Change Password</a>
-        <a href="{{ url_for('logout') }}">Logout</a>
-    </div>
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
-    <div class="status {{ 'active' if status.active else 'inactive' }}">
-        🔥 UFW Status: {{ 'ACTIVE' if status.active else 'INACTIVE' }}
-    </div>
-    
-    <div class="actions">
-        <h3>Quick Actions</h3>
-        <button class="btn-enable" onclick="toggleUFW('enable')">🟢 Enable UFW</button>
-        <button class="btn-disable" onclick="toggleUFW('disable')">🔴 Disable UFW</button>
-        <button class="btn-reset" onclick="resetUFW()">🔄 Reset UFW</button>
-    </div>
-    
-    <div class="rules-section">
-        <h3>Inbound Rules</h3>
-        {% set inbound = status.inbound_rules if status.inbound_rules is defined else (status.numbered_rules if status.numbered_rules is defined else []) %}
-        {% if inbound and inbound|length > 0 %}
-            {% for rule in inbound %}
-                <div class="rule-item">
-                    <span class="rule-number">#{{ rule.number }}</span>
-                    <span class="rule-text">{{ rule.rule }}</span>
-                    <button class="delete-btn" onclick="deleteRule('{{ rule.number }}')">🗑️ Delete</button>
+{% extends 'base.html' %}
+{% block title %}Dashboard - UFW Web Manager{% endblock %}
+{% block content %}
+<div class="dashboard-main">
+    <!-- Firewall Status at Top -->
+    <div class="card status-horizontal" style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <h2 style="margin:0; font-size:16px; display:flex; gap:6px; align-items:center;">🔥 Firewall Status</h2>
+                <div class="status-pill {{ 'active' if status.active else 'inactive' }}">
+                    {{ 'ACTIVE' if status.active else 'INACTIVE' }}
                 </div>
-            {% endfor %}
-        {% else %}
-            <div class="no-rules">No inbound rules</div>
-        {% endif %}
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                {% if status.active %}
+                    <button class="btn btn-danger btn-small" onclick="toggleUFW('disable')">🔴 Disable</button>
+                {% else %}
+                    <button class="btn btn-primary btn-small" onclick="toggleUFW('enable')">🟢 Enable</button>
+                {% endif %}
+                <button class="btn btn-ghost btn-small" onclick="toggleAdvancedControls()" id="advancedToggle">⚙️ Advanced</button>
+            </div>
+        </div>
+        
+        <div id="advancedControls" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--color-border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <p style="font-size:11px; color:var(--color-text-muted); margin:0;">⚠️ Dangerous operations - use with caution</p>
+                <button class="btn btn-warning btn-small" onclick="resetUFW()">🔄 Reset All Rules</button>
+            </div>
+        </div>
+    </div>
 
-        <hr style="margin:20px 0;">
+    <!-- Rules Containers Side by Side -->
+    <div class="rule-groups">
+        <div class="card rule-list-card">
+            <h3>Inbound Rules</h3>
+            {% set inbound = status.inbound_rules if status.inbound_rules is defined else (status.numbered_rules if status.numbered_rules is defined else []) %}
+        {% if inbound and inbound|length > 0 %}
+            <div class="rules-table-container">
+                <table class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Port</th>
+                            <th>Proto</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Direction</th>
+                            <th>Action</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in inbound %}
+                        <tr class="rule-row" data-rule-number="{{ rule.number }}">
+                            <td class="rule-number">{{ rule.number }}</td>
+                            {% set parsed = rule.rule | parse_rule %}
+                            <td class="rule-port">{{ parsed.port or '-' }}</td>
+                            <td class="rule-protocol">
+                                <span class="badge protocol-badge protocol-{{ parsed.protocol or 'any' }}">
+                                    {{ (parsed.protocol or 'ANY') | upper }}
+                                </span>
+                                {% if parsed.version %}
+                                <span class="badge version-badge version-{{ parsed.version }}">
+                                    {{ parsed.version }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="rule-from">{{ parsed.from_addr or 'Anywhere' }}</td>
+                            <td class="rule-to">{{ parsed.to_addr or 'This host' }}</td>
+                            <td class="rule-direction">
+                                <span class="badge direction-badge direction-in">IN</span>
+                            </td>
+                            <td class="rule-action">
+                                <span class="badge action-badge action-{{ parsed.action or 'allow' }}">
+                                    {{ (parsed.action or 'ALLOW') | upper }}
+                                </span>
+                            </td>
+                            <td class="rule-actions">
+                                <button class="btn btn-danger btn-small" onclick="deleteRule('{{ rule.number }}')" title="Delete rule">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">No inbound rules</div>
+        {% endif %}
+    </div>
+    <div class="card rule-list-card">
         <h3>Outbound Rules</h3>
         {% set outbound = status.outbound_rules if status.outbound_rules is defined else [] %}
         {% if outbound and outbound|length > 0 %}
-            {% for rule in outbound %}
-                <div class="rule-item">
-                    <span class="rule-number">#{{ rule.number }}</span>
-                    <span class="rule-text">{{ rule.rule }}</span>
-                    <button class="delete-btn" onclick="deleteRule('{{ rule.number }}')">🗑️ Delete</button>
-                </div>
-            {% endfor %}
+            <div class="rules-table-container">
+                <table class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Port</th>
+                            <th>Proto</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Direction</th>
+                            <th>Action</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in outbound %}
+                        <tr class="rule-row" data-rule-number="{{ rule.number }}">
+                            <td class="rule-number">{{ rule.number }}</td>
+                            {% set parsed = rule.rule | parse_rule %}
+                            <td class="rule-port">{{ parsed.port or '-' }}</td>
+                            <td class="rule-protocol">
+                                <span class="badge protocol-badge protocol-{{ parsed.protocol or 'any' }}">
+                                    {{ (parsed.protocol or 'ANY') | upper }}
+                                </span>
+                                {% if parsed.version %}
+                                <span class="badge version-badge version-{{ parsed.version }}">
+                                    {{ parsed.version }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="rule-from">{{ parsed.from_addr or 'This host' }}</td>
+                            <td class="rule-to">{{ parsed.to_addr or 'Anywhere' }}</td>
+                            <td class="rule-direction">
+                                <span class="badge direction-badge direction-out">OUT</span>
+                            </td>
+                            <td class="rule-action">
+                                <span class="badge action-badge action-{{ parsed.action or 'allow' }}">
+                                    {{ (parsed.action or 'ALLOW') | upper }}
+                                </span>
+                            </td>
+                            <td class="rule-actions">
+                                <button class="btn btn-danger btn-small" onclick="deleteRule('{{ rule.number }}')" title="Delete rule">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         {% else %}
-            <div class="no-rules">No outbound rules</div>
+            <div class="empty">No outbound rules</div>
         {% endif %}
-        
-        <div class="add-rule-form">
-            <h4>Add New Rule</h4>
-            <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
-                ℹ️ <strong>Protocol Selection:</strong> Choose IPv4 only, IPv6 only, or both. 
-                By default, UFW adds rules for both protocols, but you can now be more specific.
-            </p>
-            <form onsubmit="addRule(event)">
-                <div class="form-group">
-                    <label>Direction:</label>
+    </div>
+</div>
+
+<!-- Add Rule Form at Bottom -->
+<div class="card" style="margin-top: 24px;">
+    <h2 style="margin:0 0 16px; font-size:20px; display:flex; gap:8px; align-items:center;">➕ Add Rule</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 14px;">
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ssh')">SSH</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('http')">HTTP</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('https')">HTTPS</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('dns')">DNS</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ntp')">NTP</button>
+    </div>
+    <form onsubmit="addRule(event)" autocomplete="off" novalidate id="addRuleForm">
+        <fieldset style="border:none; padding:0; margin:0 0 12px;">
+            <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Core</legend>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:14px 18px;">
+                <div class="form-row" style="margin:0;">
+                    <label>Direction</label>
                     <select id="direction" required>
                         <option value="in">Inbound</option>
                         <option value="out">Outbound</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Action:</label>
+                <div class="form-row" style="margin:0;">
+                    <label>Action</label>
                     <select id="action" required>
                         <option value="allow">Allow</option>
                         <option value="deny">Deny</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Network Protocol:</label>
+                <div class="form-row" style="margin:0;">
+                    <label>Net Proto</label>
                     <select id="net_protocol" onchange="updateIPFields()" required>
-                        <option value="any">Any (IPv4 + IPv6)</option>
-                        <option value="ipv4">IPv4 Only</option>
-                        <option value="ipv6">IPv6 Only</option>
+                        <option value="any">Any</option>
+                        <option value="ipv4">IPv4</option>
+                        <option value="ipv6">IPv6</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Transport Protocol:</label>
+                <div class="form-row" style="margin:0;">
+                    <label>Transport</label>
                     <select id="transport_protocol" required>
                         <option value="any">Any</option>
                         <option value="tcp">TCP</option>
                         <option value="udp">UDP</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Port:</label>
-                    <input type="text" id="port" placeholder="e.g., 22, 80, 443, 1000:2000" required>
-                    <small>Single port (22), port range (1000:2000), or service name (ssh)</small>
+                <div class="form-row" style="margin:0;">
+                    <label>Port / Range</label>
+                    <input type="text" id="port" required />
+                    <small class="help field-error" id="port_error" style="display:none; color:var(--color-danger);">Invalid port format</small>
                 </div>
-                <div class="form-group">
-                    <label>Source IP:</label>
-                    <input type="text" id="source_ip" placeholder="any (leave empty for any source)">
-                    <small id="source_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+            </div>
+        </fieldset>
+        <fieldset style="border:none; padding:0; margin:0 0 14px;">
+            <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Endpoints</legend>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:14px 18px;">
+                <div class="form-row" style="margin:0;">
+                    <label>Source IP</label>
+                    <input type="text" id="source_ip" />
+                    <small class="help field-error" id="source_error" style="display:none; color:var(--color-danger);">Invalid source address</small>
                 </div>
-                <div class="form-group">
-                    <label>Destination IP:</label>
-                    <input type="text" id="dest_ip" placeholder="any (leave empty for any destination)">
-                    <small id="dest_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+                <div class="form-row" style="margin:0;">
+                    <label>Dest IP</label>
+                    <input type="text" id="dest_ip" />
+                    <small class="help field-error" id="dest_error" style="display:none; color:var(--color-danger);">Invalid destination address</small>
                 </div>
-                <div class="form-group">
-                    <label>Comment:</label>
-                    <input type="text" id="comment" placeholder="Optional description">
-                </div>
-                <button type="submit" style="background: #17a2b8; color: white;">Add Rule</button>
-            </form>
+            </div>
+        </fieldset>
+        <fieldset style="border:none; padding:0; margin:0 0 6px;">
+            <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Meta</legend>
+            <div class="form-row" style="margin:0;">
+                <label>Comment</label>
+                <input type="text" id="comment" />
+            </div>
+        </fieldset>
+        <small class="help" id="source_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+        <small class="help" id="dest_ip_help" style="margin-top:4px;">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+        <div style="display:flex; justify-content:space-between; gap:10px; margin-top:18px;">
+            <button type="reset" class="btn btn-ghost" onclick="clearErrors()">Reset</button>
+            <button type="submit" class="btn btn-primary" id="addRuleBtn">Add Rule</button>
         </div>
-    </div>
-    
-    <script>
+    </form>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
     function toggleUFW(action) {
-        if (confirm(`Are you sure you want to ${action} UFW?`)) {
-            fetch('/api/toggle', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({action: action})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Network error: ' + error);
-            });
-        }
+        ThemedModal.confirm({
+            title: (action==='enable'?'Enable Firewall':'Disable Firewall'),
+            body: action==='enable' ? 'This will enable UFW and start enforcing configured rules.' : 'This will disable UFW. Active protections will be lifted until re-enabled. Proceed?',
+            danger: action!=='enable',
+            confirmText: action==='enable'?'Enable':'Disable',
+            onConfirm: () => {
+                fetch('/api/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: action})
+                })
+                .then(r=>r.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        ThemedModal.alert({ title:'Operation Failed', body: data.error || 'Unknown error' });
+                    }
+                })
+                .catch(err => ThemedModal.alert({ title:'Network Error', body: err.toString() }));
+            }
+        });
     }
     
     function resetUFW() {
-        if (confirm('Are you sure you want to reset UFW? This will remove all rules!')) {
-            fetch('/api/reset', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Network error: ' + error);
-            });
-        }
+        ThemedModal.confirm({
+            title: 'Reset Firewall',
+            body: 'This will REMOVE all existing UFW rules and restore defaults. This cannot be undone. Continue?',
+            danger: true,
+            confirmText: 'Reset',
+            onConfirm: () => {
+                fetch('/api/reset', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                })
+                .then(r=>r.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        ThemedModal.alert({ title:'Reset Failed', body: data.error || 'Unknown error' });
+                    }
+                })
+                .catch(err => ThemedModal.alert({ title:'Network Error', body: err.toString() }));
+            }
+        });
     }
     
+    function showFieldError(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+    }
+    function hideFieldError(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    }
+    function clearErrors() {
+        ['port_error','source_error','dest_error'].forEach(hideFieldError);
+    }
+    function applyPreset(name) {
+        clearErrors();
+        const map = {
+            ssh: {port:'22', transport:'tcp', action:'allow', comment:'SSH'},
+            http: {port:'80', transport:'tcp', action:'allow', comment:'HTTP'},
+            https: {port:'443', transport:'tcp', action:'allow', comment:'HTTPS'},
+            dns: {port:'53', transport:'udp', action:'allow', comment:'DNS'},
+            ntp: {port:'123', transport:'udp', action:'allow', comment:'NTP'}
+        };
+        const p = map[name]; if(!p) return;
+        document.getElementById('port').value = p.port;
+        document.getElementById('transport_protocol').value = p.transport;
+        document.getElementById('action').value = p.action;
+        document.getElementById('comment').value = p.comment;
+    }
     function addRule(event) {
         event.preventDefault();
         
@@ -361,32 +320,23 @@
         const comment = document.getElementById('comment').value;
         
         // Basic validation
-        if (!port.trim()) {
-            alert('Port is required');
-            return;
-        }
+        clearErrors();
+    if (!port.trim()) { showFieldError('port_error'); ThemedModal.alert({title:'Validation', body:'Port is required.'}); return; }
+    if (!/^([0-9a-zA-Z:_-]+)$/.test(port.trim()) ) { showFieldError('port_error'); ThemedModal.alert({title:'Validation', body:'Invalid port format.'}); return; }
         
         // Validate IP addresses based on selected protocol
         if (net_protocol === 'ipv4') {
-            if (source_ip !== 'any' && !isValidIPv4(source_ip)) {
-                alert('Invalid IPv4 source address');
-                return;
-            }
-            if (dest_ip !== 'any' && !isValidIPv4(dest_ip)) {
-                alert('Invalid IPv4 destination address');
-                return;
-            }
+            if (source_ip !== 'any' && !isValidIPv4(source_ip)) { showFieldError('source_error'); ThemedModal.alert({title:'Validation', body:'Invalid IPv4 source address.'}); return; }
+            if (dest_ip !== 'any' && !isValidIPv4(dest_ip)) { showFieldError('dest_error'); ThemedModal.alert({title:'Validation', body:'Invalid IPv4 destination address.'}); return; }
         } else if (net_protocol === 'ipv6') {
-            if (source_ip !== 'any' && !isValidIPv6(source_ip)) {
-                alert('Invalid IPv6 source address');
-                return;
-            }
-            if (dest_ip !== 'any' && !isValidIPv6(dest_ip)) {
-                alert('Invalid IPv6 destination address');
-                return;
-            }
+            if (source_ip !== 'any' && !isValidIPv6(source_ip)) { showFieldError('source_error'); ThemedModal.alert({title:'Validation', body:'Invalid IPv6 source address.'}); return; }
+            if (dest_ip !== 'any' && !isValidIPv6(dest_ip)) { showFieldError('dest_error'); ThemedModal.alert({title:'Validation', body:'Invalid IPv6 destination address.'}); return; }
         }
         
+        const btn = document.getElementById('addRuleBtn');
+        const originalLabel = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Adding...';
         fetch('/api/add_rule', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -404,51 +354,87 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                btn.innerHTML = '✅ Added';
+                setTimeout(() => location.reload(), 700);
             } else {
-                alert('Error: ' + data.error);
+                btn.innerHTML = originalLabel;
+                btn.disabled = false;
+                ThemedModal.alert({title:'Add Rule Failed', body: data.error || 'Unknown error'});
             }
         })
         .catch(error => {
-            alert('Network error: ' + error);
+            btn.innerHTML = originalLabel;
+            btn.disabled = false;
+            ThemedModal.alert({title:'Network Error', body: error.toString()});
         });
+    }
+
+    function enterEdit(button) {
+        const item = button.closest('.rule-item');
+        if(!item) return;
+        const textDiv = item.querySelector('.text');
+        const original = textDiv.getAttribute('data-original');
+        if (item.classList.contains('editing')) return;
+        item.classList.add('editing');
+        // Very lightweight parse: user can only change comment & action by recreating rule.
+        const number = item.getAttribute('data-rule-number');
+        const formHtml = `\n            <div style="display:flex; flex-direction:column; gap:6px; width:100%;">\n              <textarea style=\"width:100%; min-height:60px; background:#222427; color:var(--color-text); border:1px solid var(--color-border-soft); border-radius:6px; padding:8px; font-family:inherit; font-size:12px;\" disabled>${original}</textarea>\n              <div style=\"display:flex; gap:6px;\">\n                <input type=\"text\" placeholder=\"New comment (optional)\" style=\"flex:1; background:#222427; color:var(--color-text); border:1px solid var(--color-border-soft); border-radius:6px; padding:8px; font-size:12px;\" class=\"edit-comment-input\" />\n                <select class=\"edit-action-select\" style=\"background:#222427; color:var(--color-text); border:1px solid var(--color-border-soft); border-radius:6px; padding:8px; font-size:12px;\">\n                  <option value=\"allow\">allow</option>\n                  <option value=\"deny\">deny</option>\n                </select>\n              </div>\n              <div style=\"display:flex; gap:8px; justify-content:flex-end;\">\n                <button type=\"button\" class=\"btn btn-primary btn-small\" onclick=\"saveEdit('${number}', this)\">Save</button>\n                <button type=\"button\" class=\"btn btn-ghost btn-small\" onclick=\"cancelEdit(this)\">Cancel</button>\n              </div>\n            </div>`;
+        textDiv.innerHTML = formHtml;
+    }
+    function cancelEdit(btn) {
+        const item = btn.closest('.rule-item');
+        const textDiv = item.querySelector('.text');
+        textDiv.innerText = textDiv.getAttribute('data-original');
+        item.classList.remove('editing');
+    }
+    function saveEdit(number, btn) {
+        // Placeholder: for now we alert user that true inline editing requires parsing rule details.
+        const item = btn.closest('.rule-item');
+        const commentInput = item.querySelector('.edit-comment-input');
+        const actionSelect = item.querySelector('.edit-action-select');
+        const newComment = (commentInput.value || '').trim();
+        const newAction = actionSelect.value;
+        if(!confirm('This will re-create the rule with modified action/comment (original will be deleted). Proceed?')) return;
+        btn.disabled = true; btn.innerHTML = '⏳';
+        // Strategy: delete existing rule then add new one is complex (need to parse original). For now just notify.
+        alert('Inline full edit not yet implemented (comment/action capture stubbed).');
+        btn.disabled = false; btn.innerHTML = 'Save';
     }
     
     function deleteRule(ruleNumber) {
-        if (confirm(`Are you sure you want to delete rule #${ruleNumber}?`)) {
-            // Show loading state
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = '⏳ Deleting...';
-            button.disabled = true;
-            
-            fetch('/api/delete_rule', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    rule_number: ruleNumber
+        ThemedModal.confirm({
+            title: 'Delete Rule',
+            body: `Delete firewall rule #${ruleNumber}? This cannot be undone.`,
+            danger: true,
+            confirmText: 'Delete',
+            onConfirm: () => {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '⏳ Deleting...';
+                button.disabled = true;
+                fetch('/api/delete_rule', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ rule_number: ruleNumber })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message briefly before reload
-                    button.innerHTML = '✅ Deleted';
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    alert('Error deleting rule: ' + data.error);
-                    // Restore button state
+                .then(r=>r.json())
+                .then(data => {
+                    if (data.success) {
+                        button.innerHTML = '✅ Deleted';
+                        setTimeout(()=>location.reload(), 800);
+                    } else {
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                        ThemedModal.alert({title:'Delete Failed', body: data.error || 'Unknown error'});
+                    }
+                })
+                .catch(err => {
                     button.innerHTML = originalText;
                     button.disabled = false;
-                }
-            })
-            .catch(error => {
-                alert('Network error: ' + error);
-                // Restore button state
-                button.innerHTML = originalText;
-                button.disabled = false;
-            });
-        }
+                    ThemedModal.alert({title:'Network Error', body: err.toString()});
+                });
+            }
+        });
     }
     
     function updateIPFields() {
@@ -486,10 +472,20 @@
         return ipv6Regex.test(ip);
     }
     
-    // Auto-refresh status every 30 seconds
-    setTimeout(function() {
-        location.reload();
-    }, 30000);
-    </script>
-</body>
-</html>
+    function toggleAdvancedControls() {
+        const controls = document.getElementById('advancedControls');
+        const toggle = document.getElementById('advancedToggle');
+        
+        if (controls.style.display === 'none') {
+            controls.style.display = 'block';
+            toggle.innerHTML = '⚙️ Hide';
+        } else {
+            controls.style.display = 'none';
+            toggle.innerHTML = '⚙️ Advanced';
+        }
+    }
+    
+    // Auto-refresh status every 60 seconds (extended due to flash overlay UX)
+    setTimeout(() => location.reload(), 60000);
+</script>
+{% endblock %}

@@ -1,76 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>UFW Web Manager - Page Not Found</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .error-container {
-            text-align: center;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-        .error-code {
-            font-size: 8em;
-            font-weight: bold;
-            margin: 0;
-            opacity: 0.8;
-        }
-        .error-message {
-            font-size: 1.5em;
-            margin: 20px 0;
-            opacity: 0.9;
-        }
-        .error-description {
-            font-size: 1em;
-            margin: 20px 0;
-            opacity: 0.7;
-        }
-        .home-link {
-            display: inline-block;
-            padding: 15px 30px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 50px;
-            margin-top: 30px;
-            transition: all 0.3s ease;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-        .home-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-        .icon {
-            font-size: 2em;
-            margin-bottom: 20px;
-            opacity: 0.8;
-        }
-    </style>
-</head>
-<body>
-    <div class="error-container">
-        <div class="icon">🔍</div>
-        <h1 class="error-code">404</h1>
-        <h2 class="error-message">Page Not Found</h2>
-        <p class="error-description">
-            The page you're looking for doesn't exist or has been moved.<br>
-            Let's get you back to managing your UFW firewall.
-        </p>
-        <a href="{{ url_for('index') }}" class="home-link">Go to Dashboard</a>
+{% extends 'base.html' %}
+{% block title %}404 - Not Found | UFW Web Manager{% endblock %}
+{% block content %}
+<div class="center-screen">
+  <div class="card auth-card" style="text-align:center; max-width:520px; background: linear-gradient(180deg, rgba(34,34,37,0.9), rgba(26,17,14,0.95));">
+    <div style="font-size:70px; line-height:1; margin-bottom:10px;">🧱</div>
+  <h1 style="margin:0; font-size:54px; letter-spacing:2px; background: var(--gradient-fire); -webkit-background-clip:text; background-clip:text; color:transparent;">404</h1>
+    <h2 style="margin:6px 0 10px; font-weight:600; font-size:22px;">Page Not Found</h2>
+    <p style="margin:0; line-height:1.6; font-size:14px; opacity:.8;">The resource you're looking for doesn't exist or may have been moved.<br>Use the navigation or return to the dashboard.</p>
+    <div style="margin-top:26px; display:flex; justify-content:center;">
+        <a href="{{ url_for('index') }}" class="btn btn-primary" style="min-width:190px;">Go to Dashboard</a>
     </div>
-</body>
-</html>
+  </div>
+</div>
+{% endblock %}
