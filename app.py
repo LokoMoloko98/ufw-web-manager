@@ -15,6 +15,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
 import bcrypt
 import json
+import secrets as pysecrets
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -354,7 +355,8 @@ def login_required(f):
 @app.route('/')
 def index():
     """Redirect to dashboard or login"""
-    if 'logged_in' in session:
+    # Legacy session object removed; rely on Flask-Login state or DISABLE_AUTH bypass
+    if os.getenv('DISABLE_AUTH') == '1' or current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
@@ -372,7 +374,8 @@ def login():
             flash('Successfully logged in!', 'success')
             return redirect(url_for('dashboard'))
         flash('Invalid credentials', 'error')
-    return render_template('login.html')
+    reset_enabled = bool(os.getenv('ADMIN_RESET_TOKEN'))
+    return render_template('login.html', reset_enabled=reset_enabled)
 
 @app.route('/logout')
 def logout():
@@ -403,6 +406,49 @@ def change_password():
         flash('Password updated successfully.', 'success')
         return redirect(url_for('dashboard'))
     return render_template('change_password.html')
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Admin password reset via one-time token defined by ADMIN_RESET_TOKEN env var.
+    This is intentionally simple (no email). If token is not set server-side, feature is disabled."""
+    if os.getenv('DISABLE_AUTH') == '1':
+        flash('Auth is disabled; password reset not required.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    reset_token_env = os.getenv('ADMIN_RESET_TOKEN')
+    if not reset_token_env:
+        flash('Password reset is not enabled on this deployment.', 'error')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        provided_token = request.form.get('token', '').strip()
+        new_pw = request.form.get('new_password', '')
+        confirm_pw = request.form.get('confirm_password', '')
+        if provided_token != reset_token_env:
+            flash('Invalid reset token.', 'error')
+            return redirect(url_for('forgot_password'))
+        if not new_pw or len(new_pw) < 8:
+            flash('Password must be at least 8 characters.', 'error')
+            return redirect(url_for('forgot_password'))
+        if new_pw != confirm_pw:
+            flash('Password confirmation mismatch.', 'error')
+            return redirect(url_for('forgot_password'))
+        # Update admin user
+        conn = get_db_conn()
+        try:
+            c = conn.cursor()
+            c.execute("SELECT id FROM users WHERE username='admin'")
+            row = c.fetchone()
+            if not row:
+                flash('Admin user missing; start application to initialize DB.', 'error')
+                return redirect(url_for('login'))
+            admin_id = row[0]
+            update_user_password(admin_id, new_pw)
+            flash('Admin password reset successfully. You can now log in.', 'success')
+            return redirect(url_for('login'))
+        finally:
+            conn.close()
+    return render_template('forgot_password.html')
 
 @app.route('/dashboard')
 @login_required

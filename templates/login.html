@@ -136,11 +136,19 @@
             
             <button type="submit" class="login-btn">🔐 Sign In</button>
         </form>
+        <div style="margin-top:15px; text-align:center; font-size:14px;">
+            <a href="{{ url_for('forgot_password') }}" style="color:#667eea;">Forgot password?</a><br>
+            {% if not reset_enabled %}
+                <span style="color:#999; font-size:12px;">(Enable by setting ADMIN_RESET_TOKEN in .env and restarting)</span>
+            {% else %}
+                <span style="color:#28a745; font-size:12px;">(Reset token enabled)</span>
+            {% endif %}
+        </div>
         
         <div class="security-note">
             <strong>Security Notice:</strong><br>
-            Default credentials: admin / ufw-admin-2024<br>
-            Please change the default password after first login for security.
+            Default admin user auto-created on first run.<br>
+            Set ADMIN_DEFAULT_PASSWORD in .env before first start or change it after login.
         </div>
     </div>
 </body>
