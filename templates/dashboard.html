@@ -2,92 +2,39 @@
 {% block title %}Dashboard - UFW Web Manager{% endblock %}
 {% block content %}
 <div class="dashboard-main">
-    <div class="card" style="margin-bottom: 20px;">
-        <h2 style="margin:0 0 16px; font-size:20px; display:flex; gap:8px; align-items:center;">➕ Add Rule</h2>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 14px;">
-            <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ssh')">SSH</button>
-            <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('http')">HTTP</button>
-            <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('https')">HTTPS</button>
-            <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('dns')">DNS</button>
-            <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ntp')">NTP</button>
-        </div>
-        <form onsubmit="addRule(event)" autocomplete="off" novalidate id="addRuleForm">
-            <fieldset style="border:none; padding:0; margin:0 0 12px;">
-                <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Core</legend>
-                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:14px 18px;">
-                    <div class="form-row" style="margin:0;">
-                        <label>Direction</label>
-                        <select id="direction" required>
-                            <option value="in">Inbound</option>
-                            <option value="out">Outbound</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin:0;">
-                        <label>Action</label>
-                        <select id="action" required>
-                            <option value="allow">Allow</option>
-                            <option value="deny">Deny</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin:0;">
-                        <label>Net Proto</label>
-                        <select id="net_protocol" onchange="updateIPFields()" required>
-                            <option value="any">Any</option>
-                            <option value="ipv4">IPv4</option>
-                            <option value="ipv6">IPv6</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin:0;">
-                        <label>Transport</label>
-                        <select id="transport_protocol" required>
-                            <option value="any">Any</option>
-                            <option value="tcp">TCP</option>
-                            <option value="udp">UDP</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin:0;">
-                        <label>Port / Range</label>
-                        <input type="text" id="port" required />
-                        <small class="help field-error" id="port_error" style="display:none; color:var(--color-danger);">Invalid port format</small>
-                    </div>
+    <!-- Firewall Status at Top -->
+    <div class="card status-horizontal" style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <h2 style="margin:0; font-size:16px; display:flex; gap:6px; align-items:center;">🔥 Firewall Status</h2>
+                <div class="status-pill {{ 'active' if status.active else 'inactive' }}">
+                    {{ 'ACTIVE' if status.active else 'INACTIVE' }}
                 </div>
-            </fieldset>
-            <fieldset style="border:none; padding:0; margin:0 0 14px;">
-                <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Endpoints</legend>
-                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:14px 18px;">
-                    <div class="form-row" style="margin:0;">
-                        <label>Source IP</label>
-                        <input type="text" id="source_ip" />
-                        <small class="help field-error" id="source_error" style="display:none; color:var(--color-danger);">Invalid source address</small>
-                    </div>
-                    <div class="form-row" style="margin:0;">
-                        <label>Dest IP</label>
-                        <input type="text" id="dest_ip" />
-                        <small class="help field-error" id="dest_error" style="display:none; color:var(--color-danger);">Invalid destination address</small>
-                    </div>
-                </div>
-            </fieldset>
-            <fieldset style="border:none; padding:0; margin:0 0 6px;">
-                <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Meta</legend>
-                <div class="form-row" style="margin:0;">
-                    <label>Comment</label>
-                    <input type="text" id="comment" />
-                </div>
-            </fieldset>
-            <small class="help" id="source_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
-            <small class="help" id="dest_ip_help" style="margin-top:4px;">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
-            <div style="display:flex; justify-content:space-between; gap:10px; margin-top:18px;">
-                <button type="reset" class="btn btn-ghost" onclick="clearErrors()">Reset</button>
-                <button type="submit" class="btn btn-primary" id="addRuleBtn">Add Rule</button>
             </div>
-        </form>
+            
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                {% if status.active %}
+                    <button class="btn btn-danger btn-small" onclick="toggleUFW('disable')">🔴 Disable</button>
+                {% else %}
+                    <button class="btn btn-primary btn-small" onclick="toggleUFW('enable')">🟢 Enable</button>
+                {% endif %}
+                <button class="btn btn-ghost btn-small" onclick="toggleAdvancedControls()" id="advancedToggle">⚙️ Advanced</button>
+            </div>
+        </div>
+        
+        <div id="advancedControls" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--color-border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <p style="font-size:11px; color:var(--color-text-muted); margin:0;">⚠️ Dangerous operations - use with caution</p>
+                <button class="btn btn-warning btn-small" onclick="resetUFW()">🔄 Reset All Rules</button>
+            </div>
+        </div>
     </div>
-</div>
-<hr class="divider" />
-<div class="rule-groups">
-    <div class="card rule-list-card">
-        <h3>Inbound Rules</h3>
-        {% set inbound = status.inbound_rules if status.inbound_rules is defined else (status.numbered_rules if status.numbered_rules is defined else []) %}
+
+    <!-- Rules Containers Side by Side -->
+    <div class="rule-groups">
+        <div class="card rule-list-card">
+            <h3>Inbound Rules</h3>
+            {% set inbound = status.inbound_rules if status.inbound_rules is defined else (status.numbered_rules if status.numbered_rules is defined else []) %}
         {% if inbound and inbound|length > 0 %}
             <div class="rules-table-container">
                 <table class="rules-table">
@@ -199,32 +146,86 @@
     </div>
 </div>
 
-<!-- Horizontal Status Container at Bottom -->
-<div class="card status-horizontal" style="margin-top: 24px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 16px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <h2 style="margin:0; font-size:16px; display:flex; gap:6px; align-items:center;">🔥 Firewall Status</h2>
-            <div class="status-pill {{ 'active' if status.active else 'inactive' }}">
-                {{ 'ACTIVE' if status.active else 'INACTIVE' }}
+<!-- Add Rule Form at Bottom -->
+<div class="card" style="margin-top: 24px;">
+    <h2 style="margin:0 0 16px; font-size:20px; display:flex; gap:8px; align-items:center;">➕ Add Rule</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 14px;">
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ssh')">SSH</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('http')">HTTP</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('https')">HTTPS</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('dns')">DNS</button>
+        <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ntp')">NTP</button>
+    </div>
+    <form onsubmit="addRule(event)" autocomplete="off" novalidate id="addRuleForm">
+        <fieldset style="border:none; padding:0; margin:0 0 12px;">
+            <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Core</legend>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:14px 18px;">
+                <div class="form-row" style="margin:0;">
+                    <label>Direction</label>
+                    <select id="direction" required>
+                        <option value="in">Inbound</option>
+                        <option value="out">Outbound</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin:0;">
+                    <label>Action</label>
+                    <select id="action" required>
+                        <option value="allow">Allow</option>
+                        <option value="deny">Deny</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin:0;">
+                    <label>Net Proto</label>
+                    <select id="net_protocol" onchange="updateIPFields()" required>
+                        <option value="any">Any</option>
+                        <option value="ipv4">IPv4</option>
+                        <option value="ipv6">IPv6</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin:0;">
+                    <label>Transport</label>
+                    <select id="transport_protocol" required>
+                        <option value="any">Any</option>
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin:0;">
+                    <label>Port / Range</label>
+                    <input type="text" id="port" required />
+                    <small class="help field-error" id="port_error" style="display:none; color:var(--color-danger);">Invalid port format</small>
+                </div>
             </div>
+        </fieldset>
+        <fieldset style="border:none; padding:0; margin:0 0 14px;">
+            <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Endpoints</legend>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:14px 18px;">
+                <div class="form-row" style="margin:0;">
+                    <label>Source IP</label>
+                    <input type="text" id="source_ip" />
+                    <small class="help field-error" id="source_error" style="display:none; color:var(--color-danger);">Invalid source address</small>
+                </div>
+                <div class="form-row" style="margin:0;">
+                    <label>Dest IP</label>
+                    <input type="text" id="dest_ip" />
+                    <small class="help field-error" id="dest_error" style="display:none; color:var(--color-danger);">Invalid destination address</small>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset style="border:none; padding:0; margin:0 0 6px;">
+            <legend style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Meta</legend>
+            <div class="form-row" style="margin:0;">
+                <label>Comment</label>
+                <input type="text" id="comment" />
+            </div>
+        </fieldset>
+        <small class="help" id="source_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+        <small class="help" id="dest_ip_help" style="margin-top:4px;">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+        <div style="display:flex; justify-content:space-between; gap:10px; margin-top:18px;">
+            <button type="reset" class="btn btn-ghost" onclick="clearErrors()">Reset</button>
+            <button type="submit" class="btn btn-primary" id="addRuleBtn">Add Rule</button>
         </div>
-        
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            {% if status.active %}
-                <button class="btn btn-danger btn-small" onclick="toggleUFW('disable')">🔴 Disable</button>
-            {% else %}
-                <button class="btn btn-primary btn-small" onclick="toggleUFW('enable')">🟢 Enable</button>
-            {% endif %}
-            <button class="btn btn-ghost btn-small" onclick="toggleAdvancedControls()" id="advancedToggle">⚙️ Advanced</button>
-        </div>
-    </div>
-    
-    <div id="advancedControls" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--color-border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <p style="font-size:11px; color:var(--color-text-muted); margin:0;">⚠️ Dangerous operations - use with caution</p>
-            <button class="btn btn-warning btn-small" onclick="resetUFW()">🔄 Reset All Rules</button>
-        </div>
-    </div>
+    </form>
 </div>
 </div>
 {% endblock %}
