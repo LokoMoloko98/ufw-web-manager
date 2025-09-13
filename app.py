@@ -411,6 +411,11 @@ def index():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
+@app.route('/healthz')
+def health_check():
+    """Health check endpoint for Docker"""
+    return {'status': 'healthy', 'service': 'ufw-web-manager'}, 200
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if os.getenv('DISABLE_AUTH') == '1':
