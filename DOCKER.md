@@ -27,7 +27,7 @@ This directory contains everything needed to run UFW Web Manager in a Docker con
 3. **Access the web interface:**
    - URL: http://localhost:5000
    - Default username: `admin`
-   - Default password: `admin123`
+   - Default password: `ufw-admin-2024`
 
 ### 🔧 Manual Deployment
 

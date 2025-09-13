@@ -12,28 +12,28 @@ Single-file Flask app + small templates that let you:
 - 📊 View latest UFW logs
 - ♻️ Reset firewall to defaults
 - 🔐 Manage authentication (SQLite + bcrypt) and recover access (token or CLI)
+- 🐳 **Docker-ready** with full host UFW access and isolated environment
 
 ---
 ## 2. Quick Start
-Automated (recommended):
+**Docker (Recommended):**
+```bash
+git clone https://github.com/LokoMoloko98/ufw-web-manager.git
+cd ufw-web-manager
+sudo ./docker-deploy.sh
+```
+
+See `DOCKER.md` for detailed container setup.
+
+**Manual Installation (Alternative):**
 ```bash
 git clone https://github.com/LokoMoloko98/ufw-web-manager.git
 cd ufw-web-manager
 sudo ./install.sh
 sudo ./start.sh
 ```
-Browse: http://localhost:5000
 
-Manual:
-```bash
-sudo apt update && sudo apt install -y ufw python3-pip python3-venv
-git clone https://github.com/LokoMoloko98/ufw-web-manager.git
-cd ufw-web-manager
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-sudo ADMIN_DEFAULT_PASSWORD='change-me-now' python3 app.py
-```
+Browse: http://<server-ip>:5000
 
 ---
 ## 3. Features
