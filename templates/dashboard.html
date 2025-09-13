@@ -1,19 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard - UFW Web Manager{% endblock %}
 {% block content %}
-<div class="grid two">
-    <div class="card status-tile" style="min-height:180px;">
-        <h2 style="margin:0 0 12px; font-size:20px; display:flex; gap:8px; align-items:center;">🔥 Firewall Status</h2>
-        <div class="status-pill {{ 'active' if status.active else 'inactive' }}">
-            {{ 'ACTIVE' if status.active else 'INACTIVE' }}
-        </div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-            <button class="btn btn-primary" onclick="toggleUFW('enable')">🟢 Enable</button>
-            <button class="btn btn-danger" onclick="toggleUFW('disable')">🔴 Disable</button>
-            <button class="btn btn-warning" onclick="resetUFW()">🔄 Reset</button>
-        </div>
-    </div>
-    <div class="card" style="min-height:180px;">
+<div class="dashboard-main">
+    <div class="card" style="margin-bottom: 20px;">
         <h2 style="margin:0 0 16px; font-size:20px; display:flex; gap:8px; align-items:center;">➕ Add Rule</h2>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 14px;">
             <button class="btn btn-outline btn-small" type="button" onclick="applyPreset('ssh')">SSH</button>
@@ -100,16 +89,54 @@
         <h3>Inbound Rules</h3>
         {% set inbound = status.inbound_rules if status.inbound_rules is defined else (status.numbered_rules if status.numbered_rules is defined else []) %}
         {% if inbound and inbound|length > 0 %}
-            {% for rule in inbound %}
-            <div class="rule-item" data-rule-number="{{ rule.number }}">
-                <div class="num">#{{ rule.number }}</div>
-                <div class="text" style="white-space: pre-line;" data-original="{{ rule.rule }}">{{ rule.rule }}</div>
-                <div class="actions">
-                    <button class="btn btn-outline btn-small" type="button" onclick="enterEdit(this)">✏️ Edit</button>
-                    <button class="btn btn-danger btn-small" onclick="deleteRule('{{ rule.number }}')">Delete</button>
-                </div>
+            <div class="rules-table-container">
+                <table class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Port</th>
+                            <th>Proto</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Direction</th>
+                            <th>Action</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in inbound %}
+                        <tr class="rule-row" data-rule-number="{{ rule.number }}">
+                            <td class="rule-number">{{ rule.number }}</td>
+                            {% set parsed = rule.rule | parse_rule %}
+                            <td class="rule-port">{{ parsed.port or '-' }}</td>
+                            <td class="rule-protocol">
+                                <span class="badge protocol-badge protocol-{{ parsed.protocol or 'any' }}">
+                                    {{ (parsed.protocol or 'ANY') | upper }}
+                                </span>
+                                {% if parsed.version %}
+                                <span class="badge version-badge version-{{ parsed.version }}">
+                                    {{ parsed.version }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="rule-from">{{ parsed.from_addr or 'Anywhere' }}</td>
+                            <td class="rule-to">{{ parsed.to_addr or 'This host' }}</td>
+                            <td class="rule-direction">
+                                <span class="badge direction-badge direction-in">IN</span>
+                            </td>
+                            <td class="rule-action">
+                                <span class="badge action-badge action-{{ parsed.action or 'allow' }}">
+                                    {{ (parsed.action or 'ALLOW') | upper }}
+                                </span>
+                            </td>
+                            <td class="rule-actions">
+                                <button class="btn btn-danger btn-small" onclick="deleteRule('{{ rule.number }}')" title="Delete rule">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            {% endfor %}
         {% else %}
             <div class="empty">No inbound rules</div>
         {% endif %}
@@ -118,20 +145,87 @@
         <h3>Outbound Rules</h3>
         {% set outbound = status.outbound_rules if status.outbound_rules is defined else [] %}
         {% if outbound and outbound|length > 0 %}
-            {% for rule in outbound %}
-            <div class="rule-item" data-rule-number="{{ rule.number }}">
-                <div class="num">#{{ rule.number }}</div>
-                <div class="text" style="white-space: pre-line;" data-original="{{ rule.rule }}">{{ rule.rule }}</div>
-                <div class="actions">
-                    <button class="btn btn-outline btn-small" type="button" onclick="enterEdit(this)">✏️ Edit</button>
-                    <button class="btn btn-danger btn-small" onclick="deleteRule('{{ rule.number }}')">Delete</button>
-                </div>
+            <div class="rules-table-container">
+                <table class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Port</th>
+                            <th>Proto</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Direction</th>
+                            <th>Action</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in outbound %}
+                        <tr class="rule-row" data-rule-number="{{ rule.number }}">
+                            <td class="rule-number">{{ rule.number }}</td>
+                            {% set parsed = rule.rule | parse_rule %}
+                            <td class="rule-port">{{ parsed.port or '-' }}</td>
+                            <td class="rule-protocol">
+                                <span class="badge protocol-badge protocol-{{ parsed.protocol or 'any' }}">
+                                    {{ (parsed.protocol or 'ANY') | upper }}
+                                </span>
+                                {% if parsed.version %}
+                                <span class="badge version-badge version-{{ parsed.version }}">
+                                    {{ parsed.version }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="rule-from">{{ parsed.from_addr or 'This host' }}</td>
+                            <td class="rule-to">{{ parsed.to_addr or 'Anywhere' }}</td>
+                            <td class="rule-direction">
+                                <span class="badge direction-badge direction-out">OUT</span>
+                            </td>
+                            <td class="rule-action">
+                                <span class="badge action-badge action-{{ parsed.action or 'allow' }}">
+                                    {{ (parsed.action or 'ALLOW') | upper }}
+                                </span>
+                            </td>
+                            <td class="rule-actions">
+                                <button class="btn btn-danger btn-small" onclick="deleteRule('{{ rule.number }}')" title="Delete rule">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            {% endfor %}
         {% else %}
             <div class="empty">No outbound rules</div>
         {% endif %}
     </div>
+</div>
+
+<!-- Horizontal Status Container at Bottom -->
+<div class="card status-horizontal" style="margin-top: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 16px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <h2 style="margin:0; font-size:16px; display:flex; gap:6px; align-items:center;">🔥 Firewall Status</h2>
+            <div class="status-pill {{ 'active' if status.active else 'inactive' }}">
+                {{ 'ACTIVE' if status.active else 'INACTIVE' }}
+            </div>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            {% if status.active %}
+                <button class="btn btn-danger btn-small" onclick="toggleUFW('disable')">🔴 Disable</button>
+            {% else %}
+                <button class="btn btn-primary btn-small" onclick="toggleUFW('enable')">🟢 Enable</button>
+            {% endif %}
+            <button class="btn btn-ghost btn-small" onclick="toggleAdvancedControls()" id="advancedToggle">⚙️ Advanced</button>
+        </div>
+    </div>
+    
+    <div id="advancedControls" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--color-border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <p style="font-size:11px; color:var(--color-text-muted); margin:0;">⚠️ Dangerous operations - use with caution</p>
+            <button class="btn btn-warning btn-small" onclick="resetUFW()">🔄 Reset All Rules</button>
+        </div>
+    </div>
+</div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -375,6 +469,19 @@
         // Basic IPv6 validation with CIDR support
         const ipv6Regex = /^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}(\/\d{1,3})?$|^::1$|^::$/;
         return ipv6Regex.test(ip);
+    }
+    
+    function toggleAdvancedControls() {
+        const controls = document.getElementById('advancedControls');
+        const toggle = document.getElementById('advancedToggle');
+        
+        if (controls.style.display === 'none') {
+            controls.style.display = 'block';
+            toggle.innerHTML = '⚙️ Hide';
+        } else {
+            controls.style.display = 'none';
+            toggle.innerHTML = '⚙️ Advanced';
+        }
     }
     
     // Auto-refresh status every 60 seconds (extended due to flash overlay UX)

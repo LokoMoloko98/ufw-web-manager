@@ -255,6 +255,49 @@
     .modal-success { box-shadow: 0 0 0 1px rgba(46,204,113,0.4), 0 16px 50px -18px rgba(0,0,0,0.7); }
     .hidden { display:none !important; }
     .no-scroll { overflow:hidden; }
+
+    /* Rules Table Styles */
+    .rules-table-container { overflow-x: auto; margin-top: 8px; }
+    .rules-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rules-table th { background: var(--color-surface-alt); color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 10px 8px; text-align: left; border-bottom: 2px solid var(--color-border); position: sticky; top: 0; }
+    .rules-table td { padding: 12px 8px; border-bottom: 1px solid var(--color-border-soft); vertical-align: middle; }
+    .rules-table tbody tr { transition: var(--transition); }
+    .rules-table tbody tr:hover { background: rgba(255,122,22,0.05); }
+    
+    .rule-number { font-weight: 600; color: var(--color-text-muted); min-width: 40px; font-family: ui-monospace, monospace; }
+    .rule-port { font-family: ui-monospace, monospace; font-weight: 500; }
+    .rule-actions { text-align: center; width: 80px; }
+    
+    /* Status Container Styles */
+    .status-horizontal { background: var(--color-surface); border: 1px solid var(--color-border-soft); }
+    
+    @media (max-width: 768px) {
+        .status-horizontal > div:first-child { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .status-horizontal > div:first-child > div:last-child { width: 100%; justify-content: flex-start; }
+    }
+    
+    /* Badge Styles */
+    .badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; margin: 1px; }
+    
+    .protocol-badge.protocol-tcp { background: rgba(52, 152, 219, 0.2); color: #5dade2; border: 1px solid rgba(52, 152, 219, 0.3); }
+    .protocol-badge.protocol-udp { background: rgba(155, 89, 182, 0.2); color: #bb8fce; border: 1px solid rgba(155, 89, 182, 0.3); }
+    .protocol-badge.protocol-any { background: rgba(149, 165, 166, 0.2); color: #aeb6bf; border: 1px solid rgba(149, 165, 166, 0.3); }
+    
+    .version-badge.version-ipv4 { background: rgba(46, 204, 113, 0.15); color: #58d68d; border: 1px solid rgba(46, 204, 113, 0.25); font-size: 9px; }
+    .version-badge.version-ipv6 { background: rgba(243, 156, 18, 0.15); color: #f7c52d; border: 1px solid rgba(243, 156, 18, 0.25); font-size: 9px; }
+    
+    .direction-badge.direction-in { background: rgba(52, 152, 219, 0.15); color: #5dade2; border: 1px solid rgba(52, 152, 219, 0.25); }
+    .direction-badge.direction-out { background: rgba(230, 126, 34, 0.15); color: #ec7063; border: 1px solid rgba(230, 126, 34, 0.25); }
+    
+    .action-badge.action-allow { background: rgba(46, 204, 113, 0.15); color: #58d68d; border: 1px solid rgba(46, 204, 113, 0.25); }
+    .action-badge.action-deny { background: rgba(231, 76, 60, 0.15); color: #ec7063; border: 1px solid rgba(231, 76, 60, 0.25); }
+    .action-badge.action-reject { background: rgba(155, 89, 182, 0.15); color: #bb8fce; border: 1px solid rgba(155, 89, 182, 0.25); }
+    
+    @media (max-width: 768px) {
+        .rules-table { font-size: 12px; }
+        .rules-table th, .rules-table td { padding: 8px 4px; }
+        .badge { font-size: 9px; padding: 3px 6px; }
+    }
     </style>
     {% block extra_head %}{% endblock %}
 </head>

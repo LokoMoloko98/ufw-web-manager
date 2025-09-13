@@ -105,6 +105,57 @@ def update_user_password(user_id, new_plain_password):
 def load_user(user_id):
     return fetch_user_by_id(user_id)
 
+# Template filter for parsing UFW rules
+@app.template_filter('parse_rule')
+def parse_rule_filter(rule_text):
+    """Parse UFW rule text into components for table display"""
+    if not rule_text:
+        return {}
+    
+    # Default values
+    parsed = {
+        'action': 'allow',
+        'port': None,
+        'protocol': None,
+        'from_addr': None,
+        'to_addr': None,
+        'version': None
+    }
+    
+    # Extract action (ALLOW, DENY, REJECT)
+    if 'ALLOW' in rule_text.upper():
+        parsed['action'] = 'allow'
+    elif 'DENY' in rule_text.upper():
+        parsed['action'] = 'deny' 
+    elif 'REJECT' in rule_text.upper():
+        parsed['action'] = 'reject'
+    
+    # Extract protocol (tcp, udp)
+    protocol_match = re.search(r'\b(tcp|udp)\b', rule_text, re.IGNORECASE)
+    if protocol_match:
+        parsed['protocol'] = protocol_match.group(1).lower()
+    
+    # Extract port numbers
+    port_match = re.search(r'\b(\d+(?:/\w+)?)\b', rule_text)
+    if port_match:
+        parsed['port'] = port_match.group(1)
+    
+    # Extract IP version (look for IPv6 indicators)
+    if '::' in rule_text or 'v6' in rule_text:
+        parsed['version'] = 'IPv6'
+    elif re.search(r'\b\d+\.\d+\.\d+\.\d+\b', rule_text):
+        parsed['version'] = 'IPv4'
+    
+    # Extract from/to addresses
+    parts = rule_text.split()
+    for i, part in enumerate(parts):
+        if part.upper() == 'FROM' and i + 1 < len(parts):
+            parsed['from_addr'] = parts[i + 1]
+        elif part.upper() == 'TO' and i + 1 < len(parts):
+            parsed['to_addr'] = parts[i + 1]
+    
+    return parsed
+
 # Configuration
 CONFIG = {
     'HOST': '0.0.0.0',
