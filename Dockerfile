@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
 # Create app user and add to necessary groups
 RUN useradd -m -u 1000 appuser && \
     usermod -aG sudo appuser && \
+    usermod -aG adm appuser && \
     echo 'appuser ALL=(ALL) NOPASSWD: /usr/sbin/ufw' >> /etc/sudoers && \
     echo 'appuser ALL=(ALL) NOPASSWD: /sbin/iptables' >> /etc/sudoers && \
     echo 'appuser ALL=(ALL) NOPASSWD: /bin/systemctl' >> /etc/sudoers

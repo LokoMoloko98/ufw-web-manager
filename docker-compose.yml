@@ -9,13 +9,17 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=production
-      - ADMIN_DEFAULT_PASSWORD=admin123  # Change this!
+      - ADMIN_DEFAULT_PASSWORD=ufw-admin-2024  # Change this!
     volumes:
       # Mount host's UFW configuration with write access
       - /etc/ufw:/etc/ufw
       - /lib/ufw:/lib/ufw:ro
       - /usr/share/ufw:/usr/share/ufw:ro
       - /var/lib/ufw:/var/lib/ufw
+      # Mount UFW log files
+      - /var/log/ufw.log:/var/log/ufw.log:ro
+      - /var/log/kern.log:/var/log/kern.log:ro
+      - /var/log/syslog:/var/log/syslog:ro
       # Mount host's network configuration for UFW access
       - /sys/class/net:/sys/class/net:ro
     network_mode: host

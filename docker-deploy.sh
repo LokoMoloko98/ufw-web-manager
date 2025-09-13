@@ -40,10 +40,19 @@ echo "📁 Ensuring UFW directories exist..."
 mkdir -p /etc/ufw
 mkdir -p /var/lib/ufw
 
-# Set proper permissions for UFW directories
-echo "🔧 Setting UFW directory permissions..."
+# Ensure log files exist
+echo "📝 Ensuring UFW log files exist..."
+touch /var/log/ufw.log
+touch /var/log/kern.log
+touch /var/log/syslog
+
+# Set proper permissions for UFW directories and log files
+echo "🔧 Setting UFW directory and log file permissions..."
 chmod 755 /etc/ufw
 chmod 755 /var/lib/ufw
+chmod 644 /var/log/ufw.log
+chmod 644 /var/log/kern.log
+chmod 644 /var/log/syslog
 
 # Ensure UFW config files exist with proper permissions
 if [ ! -f /etc/ufw/user.rules ]; then
