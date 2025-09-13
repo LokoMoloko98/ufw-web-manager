@@ -8,13 +8,102 @@ import os
 import re
 import subprocess
 import secrets
-from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3
+from datetime import datetime
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
+import bcrypt
 import json
+import secrets as pysecrets
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
+
+# --- Authentication / User Store Setup (Flask-Login + bcrypt + SQLite) ---
+DB_PATH = os.path.join(os.path.dirname(__file__), 'auth.db')
+
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(app)
+
+class User(UserMixin):
+    def __init__(self, user_id, username, password_hash):
+        self.id = user_id
+        self.username = username
+        self.password_hash = password_hash
+
+def get_db_conn():
+    return sqlite3.connect(DB_PATH)
+
+def init_db():
+    created = not os.path.exists(DB_PATH)
+    conn = get_db_conn()
+    try:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+        # Ensure single admin user exists
+        c.execute('SELECT id, username, password_hash FROM users WHERE username = ?', ('admin',))
+        row = c.fetchone()
+        if not row:
+            default_password = os.getenv('ADMIN_DEFAULT_PASSWORD', 'ufw-admin-2024')
+            pw_hash = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            now = datetime.utcnow().isoformat()
+            c.execute('INSERT INTO users (username, password_hash, created_at, updated_at) VALUES (?,?,?,?)', ('admin', pw_hash, now, now))
+            conn.commit()
+            print('[AUTH] Created default admin user (username=admin). Please change the password asap.')
+        elif created:
+            print('[AUTH] Existing database detected but newly created file; verify integrity.')
+    finally:
+        conn.close()
+
+def fetch_user_by_username(username):
+    conn = get_db_conn()
+    try:
+        c = conn.cursor()
+        c.execute('SELECT id, username, password_hash FROM users WHERE username = ?', (username,))
+        row = c.fetchone()
+        if row:
+            return User(row[0], row[1], row[2])
+        return None
+    finally:
+        conn.close()
+
+def fetch_user_by_id(user_id):
+    conn = get_db_conn()
+    try:
+        c = conn.cursor()
+        c.execute('SELECT id, username, password_hash FROM users WHERE id = ?', (user_id,))
+        row = c.fetchone()
+        if row:
+            return User(row[0], row[1], row[2])
+        return None
+    finally:
+        conn.close()
+
+def update_user_password(user_id, new_plain_password):
+    conn = get_db_conn()
+    try:
+        c = conn.cursor()
+        new_hash = bcrypt.hashpw(new_plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        now = datetime.utcnow().isoformat()
+        c.execute('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', (new_hash, now, user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+@login_manager.user_loader
+def load_user(user_id):
+    return fetch_user_by_id(user_id)
 
 # Configuration
 CONFIG = {
@@ -24,9 +113,7 @@ CONFIG = {
     'SESSION_TIMEOUT': 30  # minutes
 }
 
-# Default admin credentials (change these!)
-ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD_HASH = generate_password_hash('ufw-admin-2024')
+# Legacy constants removed; credentials now stored in SQLite. Default password may be provided via ADMIN_DEFAULT_PASSWORD env var.
 
 class UFWManager:
     """Class to handle UFW operations"""
@@ -254,56 +341,114 @@ class UFWManager:
         return []
 
 def login_required(f):
-    """Decorator to require login"""
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
+    """Lightweight auth decorator wrapping Flask-Login; supports optional bypass for external auth.
+    Set DISABLE_AUTH=1 environment variable to bypass (for reverse proxy / Authentik integration)."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if os.getenv('DISABLE_AUTH') == '1':
+            return f(*args, **kwargs)
+        if not current_user.is_authenticated:
             return redirect(url_for('login'))
-        
-        # Check session timeout
-        if 'last_activity' in session:
-            last_activity = datetime.fromisoformat(session['last_activity'])
-            if datetime.now() - last_activity > timedelta(minutes=CONFIG['SESSION_TIMEOUT']):
-                session.clear()
-                flash('Session expired. Please log in again.', 'warning')
-                return redirect(url_for('login'))
-        
-        session['last_activity'] = datetime.now().isoformat()
         return f(*args, **kwargs)
-    
-    decorated_function.__name__ = f.__name__
-    return decorated_function
+    return wrapper
 
 @app.route('/')
 def index():
     """Redirect to dashboard or login"""
-    if 'logged_in' in session:
+    # Legacy session object removed; rely on Flask-Login state or DISABLE_AUTH bypass
+    if os.getenv('DISABLE_AUTH') == '1' or current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Login page"""
+    if os.getenv('DISABLE_AUTH') == '1':
+        flash('Auth disabled by environment; bypassing login.', 'warning')
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
-            session['logged_in'] = True
-            session['username'] = username
-            session['last_activity'] = datetime.now().isoformat()
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        user = fetch_user_by_username(username)
+        if user and bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
+            login_user(user)
             flash('Successfully logged in!', 'success')
             return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid credentials', 'error')
-    
-    return render_template('login.html')
+        flash('Invalid credentials', 'error')
+    reset_enabled = bool(os.getenv('ADMIN_RESET_TOKEN'))
+    return render_template('login.html', reset_enabled=reset_enabled)
 
 @app.route('/logout')
 def logout():
-    """Logout"""
-    session.clear()
-    flash('Successfully logged out!', 'success')
+    if current_user.is_authenticated:
+        logout_user()
+    flash('Logged out.', 'success')
     return redirect(url_for('login'))
+
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_pw = request.form.get('current_password', '')
+        new_pw = request.form.get('new_password', '')
+        confirm_pw = request.form.get('confirm_password', '')
+        if not new_pw or len(new_pw) < 8:
+            flash('New password must be at least 8 characters.', 'error')
+            return redirect(url_for('change_password'))
+        if new_pw != confirm_pw:
+            flash('Password confirmation does not match.', 'error')
+            return redirect(url_for('change_password'))
+        # Re-fetch user
+        user = fetch_user_by_id(current_user.id)
+        if not user or not bcrypt.checkpw(current_pw.encode('utf-8'), user.password_hash.encode('utf-8')):
+            flash('Current password incorrect.', 'error')
+            return redirect(url_for('change_password'))
+        update_user_password(user.id, new_pw)
+        flash('Password updated successfully.', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('change_password.html')
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Admin password reset via one-time token defined by ADMIN_RESET_TOKEN env var.
+    This is intentionally simple (no email). If token is not set server-side, feature is disabled."""
+    if os.getenv('DISABLE_AUTH') == '1':
+        flash('Auth is disabled; password reset not required.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    reset_token_env = os.getenv('ADMIN_RESET_TOKEN')
+    if not reset_token_env:
+        flash('Password reset is not enabled on this deployment.', 'error')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        provided_token = request.form.get('token', '').strip()
+        new_pw = request.form.get('new_password', '')
+        confirm_pw = request.form.get('confirm_password', '')
+        if provided_token != reset_token_env:
+            flash('Invalid reset token.', 'error')
+            return redirect(url_for('forgot_password'))
+        if not new_pw or len(new_pw) < 8:
+            flash('Password must be at least 8 characters.', 'error')
+            return redirect(url_for('forgot_password'))
+        if new_pw != confirm_pw:
+            flash('Password confirmation mismatch.', 'error')
+            return redirect(url_for('forgot_password'))
+        # Update admin user
+        conn = get_db_conn()
+        try:
+            c = conn.cursor()
+            c.execute("SELECT id FROM users WHERE username='admin'")
+            row = c.fetchone()
+            if not row:
+                flash('Admin user missing; start application to initialize DB.', 'error')
+                return redirect(url_for('login'))
+            admin_id = row[0]
+            update_user_password(admin_id, new_pw)
+            flash('Admin password reset successfully. You can now log in.', 'success')
+            return redirect(url_for('login'))
+        finally:
+            conn.close()
+    return render_template('forgot_password.html')
 
 @app.route('/dashboard')
 @login_required
@@ -401,10 +546,14 @@ if __name__ == '__main__':
     if os.geteuid() != 0:
         print("Warning: This application requires sudo privileges to manage UFW.")
         print("Consider running with sudo or setting up sudoers configuration.")
-    
+    # Initialize authentication database
+    init_db()
+
     print(f"Starting UFW Web Manager on {CONFIG['HOST']}:{CONFIG['PORT']}")
-    print("Default credentials: admin / ufw-admin-2024")
-    print("Please change the default password after first login!")
+    if os.getenv('DISABLE_AUTH') == '1':
+        print('[AUTH] Authentication DISABLED via DISABLE_AUTH=1 (suitable only behind trusted reverse proxy).')
+    else:
+        print("[AUTH] Using SQLite user store with bcrypt. Default admin user ensured (username=admin). Set ADMIN_DEFAULT_PASSWORD env var before first run to override.")
     
     app.run(
         host=CONFIG['HOST'],

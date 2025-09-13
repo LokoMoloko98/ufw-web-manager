@@ -1,65 +1,90 @@
-# UFW Web Manager
+# 🔥 UFW Web Manager
 
-A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/Debian systems.
+Minimal, focused web UI for managing UFW (Uncomplicated Firewall) on Ubuntu/Debian.
 
-## Features
+---
+## 1. Why Use It?
+Single-file Flask app + small templates that let you:
+- 🔥 Toggle UFW on/off
+- 📋 See inbound vs outbound rules (separated)
+- ➕ Add precise rules (direction, action, IP version, transport protocol, ports, from/to)
+- 🗑️ Delete rules quickly by number
+- 📊 View latest UFW logs
+- ♻️ Reset firewall to defaults
+- 🔐 Manage authentication (SQLite + bcrypt) and recover access (token or CLI)
 
-- 🔥 **Enable / Disable UFW** quickly from the dashboard
-- 📋 **Inbound & Outbound Rule Separation** (two clearly labeled sections)
-- ➕ **Granular Rule Creation Form:**
-    - **Direction:** Inbound or Outbound (maps to UFW default vs `out` rules)
-    - **Action:** `allow` or `deny`
-    - **Network Protocol (IP Version):** IPv4 only, IPv6 only, or both
-    - **Transport Protocol:** TCP, UDP, or any
-    - **Port / Service:** Single port (`22`), range (`1000:2000`), or service name (`ssh`, `http`)
-    - **Source / Destination IP:** CIDR blocks (`192.168.1.0/24`, `2001:db8::/32`) or single hosts; leave blank for any
-    - **Automatic Comment Tagging:** Appends direction + protocol metadata to your custom comment
-- 🗑️ **Delete Rules** by number with one click
-- 📊 **Live Log Viewer** (tail of UFW-related syslog lines)
-- � **Reset Firewall** to defaults (`ufw --force reset`)
-- 🔐 **Session-Based Authentication** with configurable timeout
-
-## Requirements
-
-- Python 3.6+
-- UFW (Uncomplicated Firewall)
-- Sudo privileges
-- Flask web framework
-
-## Installation
-
-Recommended (automated):
+---
+## 2. Quick Start
+Automated (recommended):
 ```bash
-# Clone the repository
 git clone https://github.com/LokoMoloko98/ufw-web-manager.git
 cd ufw-web-manager
-
-# Run the installer (installs ufw, pip, Flask, sets permissions)
 sudo ./install.sh
-
-# Start the app
 sudo ./start.sh
 ```
-Then browse to: http://localhost:5000
+Browse: http://localhost:5000
 
-Manual (alternative):
+Manual:
 ```bash
+sudo apt update && sudo apt install -y ufw python3-pip python3-venv
 git clone https://github.com/LokoMoloko98/ufw-web-manager.git
 cd ufw-web-manager
-sudo apt update
-sudo apt install -y ufw python3-pip
-pip3 install -r requirements.txt
-sudo python3 app.py
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+sudo ADMIN_DEFAULT_PASSWORD='change-me-now' python3 app.py
 ```
 
-## Default Credentials
+---
+## 3. Features
+| Area          | Highlights                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 🔧 Rules       | Direction (in/out), allow/deny, IPv4 / IPv6 / both, TCP/UDP/any, port/service/range, from & to addresses, auto-comment metadata |
+| 👁️ Visibility  | Separate inbound/outbound lists + numbered rules for deletion                                                                   |
+| 📊 Logs        | Tail of recent UFW syslog entries                                                                                               |
+| 🧯 Recovery    | Auto-generated `ADMIN_RESET_TOKEN`, UI Forgot Password flow, CLI reset script                                                   |
+| 🔐 Security    | SQLite + bcrypt auth, optional `DISABLE_AUTH=1` for external SSO layer                                                          |
+| ♻️ Maintenance | One-click reset (ufw --force reset)                                                                                             |
 
-- **Username:** `admin`
-- **Password:** `ufw-admin-2024`
+---
+## 4. Authentication & Passwords
+| Aspect           | Details                                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Admin user       | `admin` created automatically on first run (`auth.db`)                                                            |
+| Initial password | Use `ADMIN_DEFAULT_PASSWORD` (env / .env). If unset, fallback default is applied and printed. Change immediately. |
+| Change (UI)      | Use Change Password link after login                                                                              |
+| Change (CLI)     | `python3 reset_admin_password.py 'NewPass123!'` (does NOT recreate DB)                                            |
+| Force recreate   | Delete `auth.db` (NOT preferred) then restart with a new `ADMIN_DEFAULT_PASSWORD`                                 |
+| Disable auth     | Set `DISABLE_AUTH=1` ONLY behind a trusted reverse proxy / SSO                                                    |
 
-**⚠️ Important:** Change the default password after the first login for security! You can do this by generating a new hash and updating the `ADMIN_PASSWORD_HASH` variable in `app.py`.
+### Forgot Password (Token Flow)
+`ADMIN_RESET_TOKEN` enables the UI reset screen. On first fresh `.env` creation the start script auto-generates one (printed once). Steps:
+1. Click "Forgot password?".
+2. Enter token + new password (>=8 chars) twice.
+3. Login with new password.
+4. Remove / rotate token in `.env`.
 
-## Usage
+Security: Treat the token like a secret. Do not commit `.env`. Clear it after use.
+
+CLI vs Token:
+- CLI: Fast when you have shell access.
+- Token: Useful for delegated ops without terminal access.
+
+---
+## 5. Configuration
+Main runtime config uses environment variables (`.env` auto-created on first start):
+| Variable                 | Purpose                                                                  |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `ADMIN_DEFAULT_PASSWORD` | Initial admin password on first DB creation only                         |
+| `ADMIN_RESET_TOKEN`      | Enables Forgot Password UI flow (auto-generated if blank on first start) |
+| `DISABLE_AUTH`           | Set to `1` to bypass auth (protect externally!)                          |
+| `HOST` / `PORT`          | Listening interface / port                                               |
+| `DEBUG`                  | Flask debug mode (avoid in production)                                   |
+
+Edit `CONFIG` in `app.py` if you want to hard-code host/port/debug outside env vars.
+
+---
+## 6. Usage
 
 1. Access the web interface at: `http://<server-ip>:5000`
 2. Log in (change the default password ASAP)
@@ -67,16 +92,16 @@ sudo python3 app.py
 4. Add a new rule using the form
 
 ### Example: Allow IPv4 SSH from a specific subnet
-| Field | Value |
-|-------|-------|
-| Direction | Inbound |
-| Action | Allow |
-| Network Protocol | IPv4 Only |
-| Transport Protocol | TCP |
-| Port | 22 |
-| Source IP | 203.0.113.0/24 |
-| Destination IP | (leave blank) |
-| Comment | ssh corp range |
+| Field              | Value          |
+| ------------------ | -------------- |
+| Direction          | Inbound        |
+| Action             | Allow          |
+| Network Protocol   | IPv4 Only      |
+| Transport Protocol | TCP            |
+| Port               | 22             |
+| Source IP          | 203.0.113.0/24 |
+| Destination IP     | (leave blank)  |
+| Comment            | ssh corp range |
 
 Resulting UFW rule (conceptually):
 ```
@@ -84,101 +109,93 @@ ufw allow from 203.0.113.0/24 to any port 22 proto tcp
 ```
 
 ### Example: Deny outbound DNS over UDP (both stacks)
-| Field | Value |
-|-------|-------|
-| Direction | Outbound |
-| Action | Deny |
-| Network Protocol | Any |
-| Transport Protocol | UDP |
-| Port | 53 |
-| Source IP | (blank) |
-| Destination IP | (blank) |
-| Comment | block dns |
+| Field              | Value     |
+| ------------------ | --------- |
+| Direction          | Outbound  |
+| Action             | Deny      |
+| Network Protocol   | Any       |
+| Transport Protocol | UDP       |
+| Port               | 53        |
+| Source IP          | (blank)   |
+| Destination IP     | (blank)   |
+| Comment            | block dns |
 
-Conceptual command:
+Resulting UFW rule (conceptually):
 ```
 ufw deny out to any port 53 proto udp
 ```
 
-### Notes
-- Leaving Source or Destination blank = `any`
-- Setting Network Protocol to IPv4 or IPv6 adjusts implicit address defaults
-- Comments are optional; app appends metadata so you can still search later
+Notes:
+- Blank source/destination = any
+- IPv4 / IPv6 selection influences default address expansions
+- Comments are enriched with direction + protocol metadata
 
-## Security Notes
+---
+## 7. Security Guidance
+| Topic            | Recommendation                                                            |
+| ---------------- | ------------------------------------------------------------------------- |
+| Privileges       | Run with sudo or configure sudoers for restricted ufw access              |
+| Network exposure | Prefer reverse proxy + TLS; limit binding or firewall the management port |
+| Logging          | UFW log lines contain IP data — handle per policy                         |
+| Token hygiene    | Remove `ADMIN_RESET_TOKEN` after successful reset                         |
+| Auth bypass      | Never expose with `DISABLE_AUTH=1` to the open internet                   |
 
-- Requires sudo for UFW — consider creating a restricted sudoers entry for the web app user
-- Change the default password immediately (edit `ADMIN_PASSWORD_HASH` in `app.py`)
-- Use HTTPS (via reverse proxy) if exposing beyond localhost
-- Limit network exposure of the management port (e.g., bind to localhost + SSH tunnel)
-- Logs may contain IP addresses; handle accordingly
-
-### Suggested sudoers snippet (example)
+Suggested sudoers (example):
 ```
 <youruser> ALL=(root) NOPASSWD: /usr/sbin/ufw
 ```
-Then run the app as `<youruser>` without full root if desired.
 
-## File Structure
-
-```
-ufw-web-manager/
-├── app.py              # Main Flask application
-├── requirements.txt    # Python dependencies
-├── README.md          # This file
-├── install.sh         # Automated installer
-├── start.sh           # Startup script
-└── templates/         # HTML templates
-    ├── login.html     # Login page
-    ├── dashboard.html # Main dashboard
-    ├── logs.html      # UFW logs viewer
-    ├── 404.html       # 404 error page
-    └── 500.html       # 500 error page
-```
-
-## Configuration
-
-Edit the `CONFIG` dictionary in `app.py` to customize:
-- Host and port settings
-- Session timeout
-- Debug mode
-
-## Troubleshooting
-
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Rules not appearing | Browser cached old template | Hard refresh (Ctrl+F5) |
-| Outbound rule ignored | Incorrect syntax (earlier versions) | Ensure command order is `ufw <action> out ...` |
-| IPv6 rule missing | UFW IPv6 disabled | Check `IPV6=yes` in `/etc/default/ufw` and reload |
-| Cannot delete rule | Number changed after add/delete | Refresh list before deleting |
-| Permission denied | Running without sudo | Start app with sudo or configure sudoers |
+---
+## 8. Troubleshooting
+| Issue                 | Cause                       | Fix                                               |
+| --------------------- | --------------------------- | ------------------------------------------------- |
+| Rules missing         | Cached page                 | Hard refresh (Ctrl+F5)                            |
+| Outbound rule ignored | Wrong syntax                | Ensure order: `ufw <action> out ...`              |
+| IPv6 rules absent     | IPv6 disabled in UFW        | Set `IPV6=yes` in `/etc/default/ufw`, then reload |
+| Delete fails          | Rule numbers shifted        | Refresh status first                              |
+| Permission denied     | Not root / no sudoers entry | Run via sudo or configure sudoers                 |
 
 Manual checks:
 ```
 sudo ufw status numbered
 sudo grep UFW /var/log/syslog | tail -50
+sudo ufw logging on   # enable if empty
 ```
 
-If logs are empty, ensure UFW logging is enabled:
+---
+## 9. File Layout
 ```
-sudo ufw logging on
+├── README.md
+├── app.py
+├── auth.db
+├── install.sh
+├── requirements.txt
+├── reset_admin_password.py
+├── start.sh
+└── templates
+    ├── 404.html
+    ├── 500.html
+    ├── change_password.html
+    ├── dashboard.html
+    ├── forgot_password.html
+    ├── login.html
+    └── logs.html
 ```
 
-## Potential Improvements
-
-- Rule editing (inline)
-- Bulk operations (multi-select delete)
-- Tag-based filtering & search
-- Dark mode UI
-- Optional app profile picker
-- API token authentication
-- Dockerfile & systemd unit
+---
+## 10. Potential Improvements
+- Inline rule editing
+- Bulk rule actions
+- Search / filtering & tagging
+- Dark mode
+- Configuration UI (dynamic token & settings)
+- API tokens / external IdP integration
 
 Contributions & suggestions welcome — open an issue or PR.
 
-## License
+---
+## 11. License
+Licensed under the Apache License 2.0 – see `LICENSE` for full text.
 
-This project is open source. Use at your own risk.
-
-## Author
+## 12. Author
 LokoMoloko98
