@@ -194,23 +194,6 @@ sudo ufw logging on   # enable if empty
 Contributions & suggestions welcome — open an issue or PR.
 
 ---
-## 10.1 Theme & Customization
-The UI uses a fire + brick palette implemented with CSS variables in `templates/base.html` for easy tweaking:
-```
-:root {
-    --color-fire-1: #ff7a16;
-    --color-fire-2: #ff4040;
-    --color-brick-1: #a3402d;
-    --color-brick-2: #c95a3c;
-    --color-bg: #202123;
-    --color-surface: #2a2c2f;
-    /* ... */
-}
-```
-Adjust brightness without a full dark/light mode by modifying the background gradients & `--color-bg` / `--color-surface` values. A future dark-mode toggle can swap an additional `data-theme` attribute that overrides these vars.
-To experiment quickly, open browser dev tools and edit the variables live, then persist chosen values into `base.html`.
-
----
 ## 11. License
 Licensed under the Apache License 2.0 – see `LICENSE` for full text.
 
