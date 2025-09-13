@@ -214,9 +214,10 @@
     </div>
     
     <div class="rules-section">
-        <h3>Current Firewall Rules</h3>
-        {% if status.numbered_rules %}
-            {% for rule in status.numbered_rules %}
+        <h3>Inbound Rules</h3>
+        {% set inbound = status.inbound_rules if status.inbound_rules is defined else (status.numbered_rules if status.numbered_rules is defined else []) %}
+        {% if inbound and inbound|length > 0 %}
+            {% for rule in inbound %}
                 <div class="rule-item">
                     <span class="rule-number">#{{ rule.number }}</span>
                     <span class="rule-text">{{ rule.rule }}</span>
@@ -224,7 +225,22 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div class="no-rules">No firewall rules configured</div>
+            <div class="no-rules">No inbound rules</div>
+        {% endif %}
+
+        <hr style="margin:20px 0;">
+        <h3>Outbound Rules</h3>
+        {% set outbound = status.outbound_rules if status.outbound_rules is defined else [] %}
+        {% if outbound and outbound|length > 0 %}
+            {% for rule in outbound %}
+                <div class="rule-item">
+                    <span class="rule-number">#{{ rule.number }}</span>
+                    <span class="rule-text">{{ rule.rule }}</span>
+                    <button class="delete-btn" onclick="deleteRule('{{ rule.number }}')">🗑️ Delete</button>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-rules">No outbound rules</div>
         {% endif %}
         
         <div class="add-rule-form">
@@ -234,6 +250,13 @@
                 By default, UFW adds rules for both protocols, but you can now be more specific.
             </p>
             <form onsubmit="addRule(event)">
+                <div class="form-group">
+                    <label>Direction:</label>
+                    <select id="direction" required>
+                        <option value="in">Inbound</option>
+                        <option value="out">Outbound</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Action:</label>
                     <select id="action" required>
@@ -327,6 +350,7 @@
     function addRule(event) {
         event.preventDefault();
         
+        const direction = document.getElementById('direction').value;
         const action = document.getElementById('action').value;
         const net_protocol = document.getElementById('net_protocol').value;
         const transport_protocol = document.getElementById('transport_protocol').value;
@@ -366,6 +390,7 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
+                direction: direction,
                 action: action,
                 net_protocol: net_protocol,
                 transport_protocol: transport_protocol,

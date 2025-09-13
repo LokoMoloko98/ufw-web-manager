@@ -4,18 +4,20 @@ A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/
 
 ## Features
 
-- 🔥 **Enable/Disable UFW:** Quickly activate or deactivate the firewall.
-- 📋 **View Rules:** See all current UFW rules in a clean, numbered list.
-- ➕ **Comprehensive Rule Creation:** Add rules with granular control:
-  - **Action:** Allow or Deny.
-  - **IP Version:** IPv4, IPv6, or both.
-  - **Protocol:** TCP, UDP, or any.
-  - **Port:** Specify single ports, ranges (e.g., `1000:2000`), or service names (e.g., `ssh`).
-  - **Source/Destination:** Define specific source and destination IP addresses or subnets (CIDR).
-- 🗑️ **Delete Rules:** Easily delete rules by their number.
-- 📊 **View Logs:** See the latest UFW log entries for troubleshooting.
-- 🔄 **Reset Firewall:** Reset UFW to its default state.
-- 🔐 **Secure Login:** Protects the interface with a username and password.
+- 🔥 **Enable / Disable UFW** quickly from the dashboard
+- 📋 **Inbound & Outbound Rule Separation** (two clearly labeled sections)
+- ➕ **Granular Rule Creation Form:**
+    - **Direction:** Inbound or Outbound (maps to UFW default vs `out` rules)
+    - **Action:** `allow` or `deny`
+    - **Network Protocol (IP Version):** IPv4 only, IPv6 only, or both
+    - **Transport Protocol:** TCP, UDP, or any
+    - **Port / Service:** Single port (`22`), range (`1000:2000`), or service name (`ssh`, `http`)
+    - **Source / Destination IP:** CIDR blocks (`192.168.1.0/24`, `2001:db8::/32`) or single hosts; leave blank for any
+    - **Automatic Comment Tagging:** Appends direction + protocol metadata to your custom comment
+- 🗑️ **Delete Rules** by number with one click
+- 📊 **Live Log Viewer** (tail of UFW-related syslog lines)
+- � **Reset Firewall** to defaults (`ufw --force reset`)
+- 🔐 **Session-Based Authentication** with configurable timeout
 
 ## Requirements
 
@@ -26,15 +28,29 @@ A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/
 
 ## Installation
 
-1.  Clone or download this repository.
-2.  Install Python dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  Run the application with sudo privileges:
-    ```bash
-    sudo python3 app.py
-    ```
+Recommended (automated):
+```bash
+# Clone the repository
+git clone https://github.com/LokoMoloko98/ufw-web-manager.git
+cd ufw-web-manager
+
+# Run the installer (installs ufw, pip, Flask, sets permissions)
+sudo ./install.sh
+
+# Start the app
+sudo ./start.sh
+```
+Then browse to: http://localhost:5000
+
+Manual (alternative):
+```bash
+git clone https://github.com/LokoMoloko98/ufw-web-manager.git
+cd ufw-web-manager
+sudo apt update
+sudo apt install -y ufw python3-pip
+pip3 install -r requirements.txt
+sudo python3 app.py
+```
 
 ## Default Credentials
 
@@ -45,26 +61,63 @@ A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/
 
 ## Usage
 
-1.  Access the web interface at `http://<your-server-ip>:5000`.
-2.  Log in with the default credentials.
-3.  Use the dashboard to manage your UFW firewall:
-    -   **View Status:** See if the firewall is active and view all existing rules.
-    -   **Toggle Firewall:** Enable or disable UFW with a single click.
-    -   **Add Rules:** Use the comprehensive form to create detailed rules. For example, to allow incoming HTTP traffic on port 80 from any IPv4 address:
-        -   **Action:** `Allow`
-        -   **Network Protocol:** `IPv4 Only`
-        -   **Transport Protocol:** `TCP`
-        -   **Port:** `80`
-        -   Leave Source and Destination IP empty for `any`.
-    -   **Delete Rules:** Click the delete button next to any rule in the list.
-    -   **View Logs:** Navigate to the logs page to see recent firewall activity.
+1. Access the web interface at: `http://<server-ip>:5000`
+2. Log in (change the default password ASAP)
+3. Review current inbound / outbound rules
+4. Add a new rule using the form
+
+### Example: Allow IPv4 SSH from a specific subnet
+| Field | Value |
+|-------|-------|
+| Direction | Inbound |
+| Action | Allow |
+| Network Protocol | IPv4 Only |
+| Transport Protocol | TCP |
+| Port | 22 |
+| Source IP | 203.0.113.0/24 |
+| Destination IP | (leave blank) |
+| Comment | ssh corp range |
+
+Resulting UFW rule (conceptually):
+```
+ufw allow from 203.0.113.0/24 to any port 22 proto tcp
+```
+
+### Example: Deny outbound DNS over UDP (both stacks)
+| Field | Value |
+|-------|-------|
+| Direction | Outbound |
+| Action | Deny |
+| Network Protocol | Any |
+| Transport Protocol | UDP |
+| Port | 53 |
+| Source IP | (blank) |
+| Destination IP | (blank) |
+| Comment | block dns |
+
+Conceptual command:
+```
+ufw deny out to any port 53 proto udp
+```
+
+### Notes
+- Leaving Source or Destination blank = `any`
+- Setting Network Protocol to IPv4 or IPv6 adjusts implicit address defaults
+- Comments are optional; app appends metadata so you can still search later
 
 ## Security Notes
 
-- This application requires sudo privileges to execute UFW commands
-- Always change the default password
-- Consider setting up proper authentication for production use
-- Run behind a reverse proxy (nginx/apache) for production deployment
+- Requires sudo for UFW — consider creating a restricted sudoers entry for the web app user
+- Change the default password immediately (edit `ADMIN_PASSWORD_HASH` in `app.py`)
+- Use HTTPS (via reverse proxy) if exposing beyond localhost
+- Limit network exposure of the management port (e.g., bind to localhost + SSH tunnel)
+- Logs may contain IP addresses; handle accordingly
+
+### Suggested sudoers snippet (example)
+```
+<youruser> ALL=(root) NOPASSWD: /usr/sbin/ufw
+```
+Then run the app as `<youruser>` without full root if desired.
 
 ## File Structure
 
@@ -73,6 +126,8 @@ ufw-web-manager/
 ├── app.py              # Main Flask application
 ├── requirements.txt    # Python dependencies
 ├── README.md          # This file
+├── install.sh         # Automated installer
+├── start.sh           # Startup script
 └── templates/         # HTML templates
     ├── login.html     # Login page
     ├── dashboard.html # Main dashboard
@@ -90,15 +145,40 @@ Edit the `CONFIG` dictionary in `app.py` to customize:
 
 ## Troubleshooting
 
-- Ensure UFW is installed: `sudo apt install ufw`
-- Check UFW status: `sudo ufw status`
-- View UFW logs: `sudo grep UFW /var/log/syslog`
-- Ensure the application has sudo privileges
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Rules not appearing | Browser cached old template | Hard refresh (Ctrl+F5) |
+| Outbound rule ignored | Incorrect syntax (earlier versions) | Ensure command order is `ufw <action> out ...` |
+| IPv6 rule missing | UFW IPv6 disabled | Check `IPV6=yes` in `/etc/default/ufw` and reload |
+| Cannot delete rule | Number changed after add/delete | Refresh list before deleting |
+| Permission denied | Running without sudo | Start app with sudo or configure sudoers |
+
+Manual checks:
+```
+sudo ufw status numbered
+sudo grep UFW /var/log/syslog | tail -50
+```
+
+If logs are empty, ensure UFW logging is enabled:
+```
+sudo ufw logging on
+```
+
+## Potential Improvements
+
+- Rule editing (inline)
+- Bulk operations (multi-select delete)
+- Tag-based filtering & search
+- Dark mode UI
+- Optional app profile picker
+- API token authentication
+- Dockerfile & systemd unit
+
+Contributions & suggestions welcome — open an issue or PR.
 
 ## License
 
 This project is open source. Use at your own risk.
 
 ## Author
-
 LokoMoloko98

@@ -35,12 +35,22 @@ class UFWManager:
     def run_command(command_list):
         """Execute UFW command safely by passing a list of arguments"""
         try:
-            result = subprocess.run(
-                command_list, 
-                capture_output=True, 
-                text=True, 
-                timeout=10
-            )
+            # Allow backwards compatibility: accept either list (preferred) or string (shell pipeline)
+            if isinstance(command_list, str):
+                result = subprocess.run(
+                    command_list,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    shell=True
+                )
+            else:
+                result = subprocess.run(
+                    command_list,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
             return {
                 'success': result.returncode == 0,
                 'output': result.stdout.strip(),
@@ -53,44 +63,61 @@ class UFWManager:
     
     @staticmethod
     def get_status():
-        """Get UFW status and rules"""
-        result = UFWManager.run_command(['sudo', 'ufw', 'status', 'verbose'])
+        """Get UFW status and rules, separated by direction"""
+        result = UFWManager.run_command(['sudo', 'ufw', 'status', 'numbered'])
         if not result['success']:
-            return {'active': False, 'rules': [], 'numbered_rules': [], 'error': result['error']}
+            return {
+                'active': False, 
+                'inbound_rules': [], 
+                'outbound_rules': [],
+                'numbered_rules': [],
+                'error': result['error']
+            }
         
         output = result['output']
         active = 'Status: active' in output
         
-        rules = []
+        inbound_rules = []
+        outbound_rules = []
+        
         lines = output.split('\n')
         for line in lines:
-            if '->' in line or 'ALLOW' in line or 'DENY' in line:
-                rules.append(line.strip())
+            line = line.strip()
+            if not line.startswith('['):
+                continue
+            
+            match = re.match(r'\[\s*(\d+)\s*\]\s*(.*)', line)
+            if not match:
+                continue
+                
+            rule_number = match.group(1)
+            rule_text = match.group(2).strip()
+            
+            if not rule_text:
+                continue
+            
+            rule_data = {'number': rule_number, 'rule': rule_text}
+            
+            # Determine direction based on rule text
+            # A more robust check for outbound rules
+            if 'ALLOW OUT' in rule_text or 'DENY OUT' in rule_text or 'REJECT OUT' in rule_text:
+                outbound_rules.append(rule_data)
+            else:
+                inbound_rules.append(rule_data)
+
         
-        # Also get numbered rules for deletion
-        numbered_result = UFWManager.run_command(['sudo', 'ufw', 'status', 'numbered'])
-        numbered_rules = []
-        if numbered_result['success']:
-            numbered_lines = numbered_result['output'].split('\n')
-            for line in numbered_lines:
-                # Look for lines that start with [ followed by a number
-                line = line.strip()
-                if line.startswith('[') and ']' in line:
-                    # Extract rule number and rule text
-                    match = re.match(r'\[\s*(\d+)\s*\]\s*(.*)', line)
-                    if match:
-                        rule_number = match.group(1)
-                        rule_text = match.group(2).strip()
-                        if rule_text:  # Only add non-empty rules
-                            numbered_rules.append({
-                                'number': rule_number,
-                                'rule': rule_text
-                            })
-        
+        # Create a unified numbered_rules list (legacy compatibility & delete operations) sorted by rule number
+        combined = inbound_rules + outbound_rules
+        try:
+            combined_sorted = sorted(combined, key=lambda r: int(r['number']))
+        except Exception:
+            combined_sorted = combined  # Fallback if unexpected format
+
         return {
-            'active': active, 
-            'rules': rules, 
-            'numbered_rules': numbered_rules,
+            'active': active,
+            'inbound_rules': inbound_rules,
+            'outbound_rules': outbound_rules,
+            'numbered_rules': combined_sorted,
             'error': None
         }
     
@@ -105,9 +132,12 @@ class UFWManager:
         return UFWManager.run_command(['sudo', 'ufw', 'disable'])
     
     @staticmethod
-    def add_rule(action, net_protocol, transport_protocol, port, source_ip='any', dest_ip='any', comment=None):
-        """Add a comprehensive UFW rule with full from/to syntax"""
+    def add_rule(direction, action, net_protocol, transport_protocol, port, source_ip='any', dest_ip='any', comment=None):
+        """Add a comprehensive UFW rule with direction and full from/to syntax"""
         # Validate input
+        if direction not in ['in', 'out']:
+            return {'success': False, 'error': 'Invalid direction'}
+            
         if action not in ['allow', 'deny']:
             return {'success': False, 'error': 'Invalid action'}
         
@@ -121,20 +151,19 @@ class UFWManager:
         if not re.match(r'^[a-zA-Z0-9\:_-]+$', port):
             return {'success': False, 'error': 'Invalid port format'}
         
-        # Build UFW command using from/to syntax
+        # Build UFW command: order must be `ufw <action> [out]` (ufw syntax expects action first)
         command_parts = ['sudo', 'ufw', action]
-        
-        # Build UFW command using ALWAYS the full from/to syntax
-        command_parts = ['sudo', 'ufw', action]
+
+        # Add direction (ONLY for outbound; inbound is default)
+        if direction == 'out':
+            command_parts.append('out')
         
         # Handle source - always specify from
         if source_ip == 'any':
             if net_protocol == 'ipv6':
-                source = '::/0'  # IPv6 equivalent of 0.0.0.0/0
-            elif net_protocol == 'ipv4':
-                source = '0.0.0.0/0'  # IPv4 any
-            else:  # any protocol
-                source = '0.0.0.0/0'  # Default to IPv4 any
+                source = '::/0'
+            else:
+                source = '0.0.0.0/0'
         else:
             source = source_ip
         
@@ -156,8 +185,9 @@ class UFWManager:
         
         # Add comment if provided
         if comment:
+            direction_comment = " (Outbound)" if direction == 'out' else " (Inbound)"
             proto_comment = f" ({net_protocol.upper()}" + (f"/{transport_protocol.upper()}" if transport_protocol != 'any' else "") + ")"
-            comment_text = f"{comment}{proto_comment}"
+            comment_text = f"{comment}{direction_comment}{proto_comment}"
             command_parts.extend(['comment', comment_text])
         
         # Debug: Print the command being executed
@@ -177,11 +207,11 @@ class UFWManager:
             
             # First check if the rule exists by getting current status
             status = UFWManager.get_status()
-            if not status['numbered_rules']:
+            if not status.get('numbered_rules'):
                 return {'success': False, 'error': 'No rules to delete'}
             
             # Find the rule to confirm its existence
-            rule_exists = any(r['number'] == str(rule_num) for r in status['numbered_rules'])
+            rule_exists = any(r.get('number') == str(rule_num) for r in status.get('numbered_rules', []))
             if not rule_exists:
                 return {'success': False, 'error': f'Rule {rule_num} not found'}
             
@@ -212,11 +242,12 @@ class UFWManager:
     @staticmethod
     def reset():
         """Reset UFW to defaults"""
-        return UFWManager.run_command('sudo ufw --force reset')
+        return UFWManager.run_command(['sudo', 'ufw', '--force', 'reset'])
     
     @staticmethod
     def get_logs():
         """Get UFW logs"""
+        # Use shell pipeline via string for grep + tail (run_command handles string with shell=True)
         result = UFWManager.run_command('sudo grep UFW /var/log/syslog | tail -50')
         if result['success']:
             return result['output'].split('\n')
@@ -307,6 +338,7 @@ def api_toggle():
 def api_add_rule():
     """API endpoint to add a comprehensive rule"""
     data = request.json
+    direction = data.get('direction', 'in')
     action = data.get('action')
     net_protocol = data.get('net_protocol', 'any')
     transport_protocol = data.get('transport_protocol', 'any')
@@ -319,6 +351,7 @@ def api_add_rule():
         return jsonify({'success': False, 'error': 'Action and port are required'})
     
     result = UFWManager.add_rule(
+        direction=direction,
         action=action,
         net_protocol=net_protocol,
         transport_protocol=transport_protocol,
