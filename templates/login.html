@@ -11,11 +11,14 @@
         <form method="POST">
             <div class="form-row">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="admin" autocomplete="username" required />
+                <input type="text" id="username" name="username" autocomplete="username" required />
             </div>
             <div class="form-row">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+                <div class="pw-wrapper">
+                    <input type="password" id="password" class="pw-input" name="password" autocomplete="current-password" required />
+                    <button type="button" class="pw-toggle" aria-label="Show password">👁</button>
+                </div>
             </div>
             <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
                 <a href="{{ url_for('forgot_password') }}" class="muted" style="font-size:12px;">Forgot password?</a>
