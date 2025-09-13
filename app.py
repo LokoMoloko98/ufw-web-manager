@@ -386,7 +386,8 @@ class UFWManager:
     def get_logs():
         """Get UFW logs"""
         # Use shell pipeline via string for grep + tail (run_command handles string with shell=True)
-        result = UFWManager.run_command('sudo grep UFW /var/log/syslog | tail -50')
+        # No sudo needed since appuser is in adm group and can read log files
+        result = UFWManager.run_command('grep UFW /var/log/syslog | tail -50')
         if result['success']:
             return result['output'].split('\n')
         return []
