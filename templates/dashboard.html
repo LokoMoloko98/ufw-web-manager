@@ -220,7 +220,7 @@
                 <div class="rule-item">
                     <span class="rule-number">#{{ rule.number }}</span>
                     <span class="rule-text">{{ rule.rule }}</span>
-                    <button class="delete-btn" onclick="deleteRule({{ rule.number }})">🗑️ Delete</button>
+                    <button class="delete-btn" onclick="deleteRule('{{ rule.number }}')">🗑️ Delete</button>
                 </div>
             {% endfor %}
         {% else %}
@@ -229,6 +229,10 @@
         
         <div class="add-rule-form">
             <h4>Add New Rule</h4>
+            <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                ℹ️ <strong>Protocol Selection:</strong> Choose IPv4 only, IPv6 only, or both. 
+                By default, UFW adds rules for both protocols, but you can now be more specific.
+            </p>
             <form onsubmit="addRule(event)">
                 <div class="form-group">
                     <label>Action:</label>
@@ -238,8 +242,35 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Target:</label>
-                    <input type="text" id="target" placeholder="e.g., 22/tcp, 80, ssh" required>
+                    <label>Network Protocol:</label>
+                    <select id="net_protocol" onchange="updateIPFields()" required>
+                        <option value="any">Any (IPv4 + IPv6)</option>
+                        <option value="ipv4">IPv4 Only</option>
+                        <option value="ipv6">IPv6 Only</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Transport Protocol:</label>
+                    <select id="transport_protocol" required>
+                        <option value="any">Any</option>
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Port:</label>
+                    <input type="text" id="port" placeholder="e.g., 22, 80, 443, 1000:2000" required>
+                    <small>Single port (22), port range (1000:2000), or service name (ssh)</small>
+                </div>
+                <div class="form-group">
+                    <label>Source IP:</label>
+                    <input type="text" id="source_ip" placeholder="any (leave empty for any source)">
+                    <small id="source_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
+                </div>
+                <div class="form-group">
+                    <label>Destination IP:</label>
+                    <input type="text" id="dest_ip" placeholder="any (leave empty for any destination)">
+                    <small id="dest_ip_help">IPv4: 192.168.1.0/24 or 10.0.0.1 | IPv6: 2001:db8::/32 or ::1</small>
                 </div>
                 <div class="form-group">
                     <label>Comment:</label>
@@ -297,15 +328,50 @@
         event.preventDefault();
         
         const action = document.getElementById('action').value;
-        const target = document.getElementById('target').value;
+        const net_protocol = document.getElementById('net_protocol').value;
+        const transport_protocol = document.getElementById('transport_protocol').value;
+        const port = document.getElementById('port').value;
+        const source_ip = document.getElementById('source_ip').value || 'any';
+        const dest_ip = document.getElementById('dest_ip').value || 'any';
         const comment = document.getElementById('comment').value;
+        
+        // Basic validation
+        if (!port.trim()) {
+            alert('Port is required');
+            return;
+        }
+        
+        // Validate IP addresses based on selected protocol
+        if (net_protocol === 'ipv4') {
+            if (source_ip !== 'any' && !isValidIPv4(source_ip)) {
+                alert('Invalid IPv4 source address');
+                return;
+            }
+            if (dest_ip !== 'any' && !isValidIPv4(dest_ip)) {
+                alert('Invalid IPv4 destination address');
+                return;
+            }
+        } else if (net_protocol === 'ipv6') {
+            if (source_ip !== 'any' && !isValidIPv6(source_ip)) {
+                alert('Invalid IPv6 source address');
+                return;
+            }
+            if (dest_ip !== 'any' && !isValidIPv6(dest_ip)) {
+                alert('Invalid IPv6 destination address');
+                return;
+            }
+        }
         
         fetch('/api/add_rule', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 action: action,
-                target: target,
+                net_protocol: net_protocol,
+                transport_protocol: transport_protocol,
+                port: port,
+                source_ip: source_ip,
+                dest_ip: dest_ip,
                 comment: comment
             })
         })
@@ -357,6 +423,41 @@
                 button.disabled = false;
             });
         }
+    }
+    
+    function updateIPFields() {
+        const netProtocol = document.getElementById('net_protocol').value;
+        const sourceHelp = document.getElementById('source_ip_help');
+        const destHelp = document.getElementById('dest_ip_help');
+        
+        if (netProtocol === 'ipv4') {
+            sourceHelp.textContent = 'IPv4 format: 192.168.1.0/24, 10.0.0.1, or leave empty for any';
+            destHelp.textContent = 'IPv4 format: 192.168.1.0/24, 10.0.0.1, or leave empty for any';
+        } else if (netProtocol === 'ipv6') {
+            sourceHelp.textContent = 'IPv6 format: 2001:db8::/32, ::1, or leave empty for any';
+            destHelp.textContent = 'IPv6 format: 2001:db8::/32, ::1, or leave empty for any';
+        } else {
+            sourceHelp.textContent = 'Any format: IPv4 (192.168.1.0/24) or IPv6 (2001:db8::/32)';
+            destHelp.textContent = 'Any format: IPv4 (192.168.1.0/24) or IPv6 (2001:db8::/32)';
+        }
+    }
+    
+    function isValidIPv4(ip) {
+        // Basic IPv4 validation with CIDR support
+        const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+        if (!ipv4Regex.test(ip)) return false;
+        
+        const parts = ip.split('/')[0].split('.');
+        return parts.every(part => {
+            const num = parseInt(part, 10);
+            return num >= 0 && num <= 255;
+        });
+    }
+    
+    function isValidIPv6(ip) {
+        // Basic IPv6 validation with CIDR support
+        const ipv6Regex = /^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}(\/\d{1,3})?$|^::1$|^::$/;
+        return ipv6Regex.test(ip);
     }
     
     // Auto-refresh status every 30 seconds

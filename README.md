@@ -4,13 +4,18 @@ A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/
 
 ## Features
 
-- 🔥 Enable/Disable UFW firewall
-- 📋 View current firewall rules
-- ➕ Add new firewall rules (allow/deny)
-- 🗑️ Delete existing rules
-- 📊 View UFW logs
-- 🔄 Reset firewall to defaults
-- 🔐 Secure web authentication
+- 🔥 **Enable/Disable UFW:** Quickly activate or deactivate the firewall.
+- 📋 **View Rules:** See all current UFW rules in a clean, numbered list.
+- ➕ **Comprehensive Rule Creation:** Add rules with granular control:
+  - **Action:** Allow or Deny.
+  - **IP Version:** IPv4, IPv6, or both.
+  - **Protocol:** TCP, UDP, or any.
+  - **Port:** Specify single ports, ranges (e.g., `1000:2000`), or service names (e.g., `ssh`).
+  - **Source/Destination:** Define specific source and destination IP addresses or subnets (CIDR).
+- 🗑️ **Delete Rules:** Easily delete rules by their number.
+- 📊 **View Logs:** See the latest UFW log entries for troubleshooting.
+- 🔄 **Reset Firewall:** Reset UFW to its default state.
+- 🔐 **Secure Login:** Protects the interface with a username and password.
 
 ## Requirements
 
@@ -21,34 +26,38 @@ A lightweight web interface for managing UFW (Uncomplicated Firewall) on Ubuntu/
 
 ## Installation
 
-1. Clone or download this repository
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the application:
-   ```bash
-   sudo python3 app.py
-   ```
+1.  Clone or download this repository.
+2.  Install Python dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  Run the application with sudo privileges:
+    ```bash
+    sudo python3 app.py
+    ```
 
 ## Default Credentials
 
-- **Username:** admin
-- **Password:** ufw-admin-2024
+- **Username:** `admin`
+- **Password:** `ufw-admin-2024`
 
-**⚠️ Important:** Change the default password after first login for security!
+**⚠️ Important:** Change the default password after the first login for security! You can do this by generating a new hash and updating the `ADMIN_PASSWORD_HASH` variable in `app.py`.
 
 ## Usage
 
-1. Access the web interface at `http://localhost:5000`
-2. Log in with the default credentials
-3. Use the dashboard to manage your UFW firewall:
-   - View current status and rules
-   - Enable/disable the firewall
-   - Add new rules (e.g., `22/tcp`, `80`, `ssh`)
-   - View logs for troubleshooting
-   - Reset firewall if needed
+1.  Access the web interface at `http://<your-server-ip>:5000`.
+2.  Log in with the default credentials.
+3.  Use the dashboard to manage your UFW firewall:
+    -   **View Status:** See if the firewall is active and view all existing rules.
+    -   **Toggle Firewall:** Enable or disable UFW with a single click.
+    -   **Add Rules:** Use the comprehensive form to create detailed rules. For example, to allow incoming HTTP traffic on port 80 from any IPv4 address:
+        -   **Action:** `Allow`
+        -   **Network Protocol:** `IPv4 Only`
+        -   **Transport Protocol:** `TCP`
+        -   **Port:** `80`
+        -   Leave Source and Destination IP empty for `any`.
+    -   **Delete Rules:** Click the delete button next to any rule in the list.
+    -   **View Logs:** Navigate to the logs page to see recent firewall activity.
 
 ## Security Notes
 
