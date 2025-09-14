@@ -49,4 +49,4 @@ services:
 
 networks:
   ufw_manager_network:
-    external: true
+    driver: bridge
