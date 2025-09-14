@@ -1,4 +1,4 @@
-# 🔥 UFW Web Manager
+# 🔥UFW Web Manager
 
 Minimal, focused web UI for managing UFW (Uncomplicated Firewall) on Ubuntu/Debian.
 
