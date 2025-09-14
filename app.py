@@ -166,6 +166,80 @@ CONFIG = {
 
 # Legacy constants removed; credentials now stored in SQLite. Default password may be provided via ADMIN_DEFAULT_PASSWORD env var.
 
+class DockerUFWManager:
+    """Helper class for Docker-specific UFW operations"""
+    
+    @staticmethod
+    def is_ufw_docker_installed():
+        """Check if ufw-docker is installed and available"""
+        try:
+            result = subprocess.run(['which', 'ufw-docker'], capture_output=True, text=True)
+            return result.returncode == 0
+        except Exception:
+            return False
+    
+    @staticmethod
+    def get_docker_containers():
+        """Get list of running Docker containers"""
+        try:
+            result = subprocess.run(
+                ['docker', 'ps', '--format', 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                containers = []
+                for line in lines:
+                    if line.strip():
+                        parts = line.split('\t')
+                        if len(parts) >= 3:
+                            containers.append({
+                                'name': parts[0].strip(),
+                                'ports': parts[1].strip(),
+                                'status': parts[2].strip()
+                            })
+                return containers
+            return []
+        except Exception:
+            return []
+    
+    @staticmethod
+    def check_docker_integration():
+        """Check if Docker and UFW are properly integrated"""
+        status = {
+            'docker_installed': False,
+            'ufw_docker_installed': False,
+            'docker_running': False,
+            'ufw_docker_rules_present': False
+        }
+        
+        # Check Docker installation
+        try:
+            result = subprocess.run(['docker', '--version'], capture_output=True, text=True)
+            status['docker_installed'] = result.returncode == 0
+        except Exception:
+            pass
+        
+        # Check Docker daemon
+        try:
+            result = subprocess.run(['docker', 'info'], capture_output=True, text=True)
+            status['docker_running'] = result.returncode == 0
+        except Exception:
+            pass
+        
+        # Check ufw-docker installation
+        status['ufw_docker_installed'] = DockerUFWManager.is_ufw_docker_installed()
+        
+        # Check if ufw-docker rules are present in UFW
+        try:
+            result = subprocess.run(['sudo', 'ufw', 'status', 'verbose'], capture_output=True, text=True)
+            if result.returncode == 0:
+                status['ufw_docker_rules_present'] = 'DOCKER-USER' in result.stdout
+        except Exception:
+            pass
+        
+        return status
+
 class UFWManager:
     """Class to handle UFW operations"""
     
@@ -201,7 +275,8 @@ class UFWManager:
     
     @staticmethod
     def get_status():
-        """Get UFW status and rules, separated by direction"""
+        """Get UFW status and rules, separated by direction
+        Filters out FORWARD rules from user display while keeping them for backend management."""
         result = UFWManager.run_command(['sudo', 'ufw', 'status', 'numbered'])
         if not result['success']:
             return {
@@ -209,6 +284,7 @@ class UFWManager:
                 'inbound_rules': [], 
                 'outbound_rules': [],
                 'numbered_rules': [],
+                'all_rules': [],  # Keep all rules for backend operations
                 'error': result['error']
             }
         
@@ -217,6 +293,7 @@ class UFWManager:
         
         inbound_rules = []
         outbound_rules = []
+        all_rules = []  # Keep all rules including FORWARD rules for backend operations
         
         lines = output.split('\n')
         for line in lines:
@@ -236,8 +313,14 @@ class UFWManager:
             
             rule_data = {'number': rule_number, 'rule': rule_text}
             
-            # Determine direction based on rule text
-            # A more robust check for outbound rules
+            # Always add to all_rules for backend management
+            all_rules.append(rule_data)
+            
+            # Filter out FORWARD rules from user display (they're Docker-related background rules)
+            if 'ALLOW FWD' in rule_text or 'DENY FWD' in rule_text or 'REJECT FWD' in rule_text:
+                continue  # Skip FORWARD rules in user display
+            
+            # Determine direction based on rule text for user-visible rules
             if 'ALLOW OUT' in rule_text or 'DENY OUT' in rule_text or 'REJECT OUT' in rule_text:
                 outbound_rules.append(rule_data)
             else:
@@ -245,17 +328,25 @@ class UFWManager:
 
         
         # Create a unified numbered_rules list (legacy compatibility & delete operations) sorted by rule number
+        # This contains only user-visible rules (no FORWARD rules)
         combined = inbound_rules + outbound_rules
         try:
             combined_sorted = sorted(combined, key=lambda r: int(r['number']))
         except Exception:
             combined_sorted = combined  # Fallback if unexpected format
 
+        # Sort all_rules for backend operations
+        try:
+            all_rules_sorted = sorted(all_rules, key=lambda r: int(r['number']))
+        except Exception:
+            all_rules_sorted = all_rules
+
         return {
             'active': active,
             'inbound_rules': inbound_rules,
             'outbound_rules': outbound_rules,
-            'numbered_rules': combined_sorted,
+            'numbered_rules': combined_sorted,  # User-visible rules only
+            'all_rules': all_rules_sorted,      # All rules including FORWARD for backend
             'error': None
         }
     
@@ -271,7 +362,8 @@ class UFWManager:
     
     @staticmethod
     def add_rule(direction, action, net_protocol, transport_protocol, port, source_ip='any', dest_ip='any', comment=None):
-        """Add a comprehensive UFW rule with direction and full from/to syntax"""
+        """Add a comprehensive UFW rule with direction and full from/to syntax
+        For Docker compatibility, creates both INPUT and FORWARD rules when allowing traffic."""
         # Validate input
         if direction not in ['in', 'out']:
             return {'success': False, 'error': 'Invalid direction'}
@@ -289,13 +381,6 @@ class UFWManager:
         if not re.match(r'^[a-zA-Z0-9\:_-]+$', port):
             return {'success': False, 'error': 'Invalid port format'}
         
-        # Build UFW command: order must be `ufw <action> [out]` (ufw syntax expects action first)
-        command_parts = ['sudo', 'ufw', action]
-
-        # Add direction (ONLY for outbound; inbound is default)
-        if direction == 'out':
-            command_parts.append('out')
-        
         # Handle source - always specify from
         if source_ip == 'any':
             if net_protocol == 'ipv6':
@@ -311,33 +396,83 @@ class UFWManager:
         else:
             dest = dest_ip
         
-        # ALWAYS use from/to syntax
-        command_parts.extend(['from', source, 'to', dest])
-        
-        # Add port specification
-        command_parts.extend(['port', port])
-        
-        # Add protocol specification
-        if transport_protocol != 'any':
-            command_parts.extend(['proto', transport_protocol])
-        
-        # Add comment if provided
-        if comment:
-            direction_comment = " (Outbound)" if direction == 'out' else " (Inbound)"
-            proto_comment = f" ({net_protocol.upper()}" + (f"/{transport_protocol.upper()}" if transport_protocol != 'any' else "") + ")"
-            comment_text = f"{comment}{direction_comment}{proto_comment}"
-            command_parts.extend(['comment', comment_text])
-        
-        # Debug: Print the command being executed
-        print(f"DEBUG: Executing UFW command: {' '.join(command_parts)}")
-        
-        result = UFWManager.run_command(command_parts)
-        print(f"DEBUG: UFW command result: {result}")
-        return result
+        # For allow rules, we need to create both INPUT and FORWARD rules for Docker compatibility
+        if action == 'allow' and direction == 'in':
+            # First create the standard INPUT rule
+            input_command_parts = ['sudo', 'ufw', action]
+            input_command_parts.extend(['from', source, 'to', dest])
+            input_command_parts.extend(['port', port])
+            
+            if transport_protocol != 'any':
+                input_command_parts.extend(['proto', transport_protocol])
+            
+            if comment:
+                direction_comment = " (Inbound)"
+                proto_comment = f" ({net_protocol.upper()}" + (f"/{transport_protocol.upper()}" if transport_protocol != 'any' else "") + ")"
+                comment_text = f"{comment}{direction_comment}{proto_comment}"
+                input_command_parts.extend(['comment', comment_text])
+            
+            print(f"DEBUG: Executing UFW INPUT command: {' '.join(input_command_parts)}")
+            input_result = UFWManager.run_command(input_command_parts)
+            print(f"DEBUG: UFW INPUT command result: {input_result}")
+            
+            # Then create the FORWARD rule for Docker traffic
+            forward_command_parts = ['sudo', 'ufw', 'route', action]
+            forward_command_parts.extend(['proto', transport_protocol if transport_protocol != 'any' else 'tcp'])
+            forward_command_parts.extend(['from', 'any', 'to', 'any', 'port', port])
+            
+            print(f"DEBUG: Executing UFW FORWARD command: {' '.join(forward_command_parts)}")
+            forward_result = UFWManager.run_command(forward_command_parts)
+            print(f"DEBUG: UFW FORWARD command result: {forward_result}")
+            
+            # Return success if both rules were created successfully
+            if input_result['success'] and forward_result['success']:
+                return {
+                    'success': True,
+                    'output': f"INPUT rule: {input_result['output']}\nFORWARD rule: {forward_result['output']}",
+                    'error': ''
+                }
+            else:
+                return {
+                    'success': False,
+                    'output': f"INPUT: {input_result['output']}\nFORWARD: {forward_result['output']}",
+                    'error': f"INPUT error: {input_result.get('error', '')}\nFORWARD error: {forward_result.get('error', '')}"
+                }
+        else:
+            # For outbound rules or deny rules, use the original single-rule logic
+            command_parts = ['sudo', 'ufw', action]
+
+            # Add direction (ONLY for outbound; inbound is default)
+            if direction == 'out':
+                command_parts.append('out')
+            
+            # ALWAYS use from/to syntax
+            command_parts.extend(['from', source, 'to', dest])
+            
+            # Add port specification
+            command_parts.extend(['port', port])
+            
+            # Add protocol specification
+            if transport_protocol != 'any':
+                command_parts.extend(['proto', transport_protocol])
+            
+            # Add comment if provided
+            if comment:
+                direction_comment = " (Outbound)" if direction == 'out' else " (Inbound)"
+                proto_comment = f" ({net_protocol.upper()}" + (f"/{transport_protocol.upper()}" if transport_protocol != 'any' else "") + ")"
+                comment_text = f"{comment}{direction_comment}{proto_comment}"
+                command_parts.extend(['comment', comment_text])
+            
+            # Debug: Print the command being executed
+            print(f"DEBUG: Executing UFW command: {' '.join(command_parts)}")
+            
+            result = UFWManager.run_command(command_parts)
+            print(f"DEBUG: UFW command result: {result}")
+            return result
     
     @staticmethod
     def delete_rule(rule_number):
-        """Delete a UFW rule by number"""
+        """Delete a UFW rule by number, handling both INPUT and linked FORWARD rules for Docker compatibility"""
         try:
             rule_num = int(rule_number)
             if rule_num <= 0:
@@ -345,18 +480,89 @@ class UFWManager:
             
             # First check if the rule exists by getting current status
             status = UFWManager.get_status()
-            if not status.get('numbered_rules'):
+            if not status.get('all_rules'):
                 return {'success': False, 'error': 'No rules to delete'}
             
-            # Find the rule to confirm its existence
-            rule_exists = any(r.get('number') == str(rule_num) for r in status.get('numbered_rules', []))
-            if not rule_exists:
+            # Find the rule to confirm its existence and extract details
+            target_rule = None
+            for rule in status.get('all_rules', []):
+                if rule.get('number') == str(rule_num):
+                    target_rule = rule
+                    break
+            
+            if not target_rule:
                 return {'success': False, 'error': f'Rule {rule_num} not found'}
             
+            rule_text = target_rule.get('rule', '')
+            
+            # Check if this is an INPUT rule that might have a corresponding FORWARD rule
+            is_input_allow_rule = ('ALLOW IN' in rule_text or 
+                                 ('ALLOW' in rule_text and 'OUT' not in rule_text and 'FWD' not in rule_text))
+            
+            # Extract port and protocol information from the rule for FORWARD rule matching
+            port_match = re.search(r'\b(\d+)/(tcp|udp)\b', rule_text)
+            if is_input_allow_rule and port_match:
+                port = port_match.group(1)
+                protocol = port_match.group(2)
+                
+                # Look for corresponding FORWARD rule
+                forward_rule_number = None
+                for rule in status.get('all_rules', []):
+                    forward_rule_text = rule.get('rule', '')
+                    if (f'{port}/{protocol}' in forward_rule_text and 
+                        'ALLOW FWD' in forward_rule_text):
+                        forward_rule_number = rule.get('number')
+                        break
+                
+                # Delete the main INPUT rule first
+                input_result = UFWManager._delete_single_rule(rule_num)
+                
+                # If there's a corresponding FORWARD rule, delete it too
+                forward_result = {'success': True, 'output': 'No FORWARD rule to delete', 'error': ''}
+                if forward_rule_number:
+                    # We need to get the updated status since rule numbers may have shifted
+                    updated_status = UFWManager.get_status()
+                    # Find the FORWARD rule again (number may have shifted)
+                    for rule in updated_status.get('all_rules', []):
+                        forward_rule_text = rule.get('rule', '')
+                        if (f'{port}/{protocol}' in forward_rule_text and 
+                            'ALLOW FWD' in forward_rule_text):
+                            forward_rule_number = int(rule.get('number'))
+                            break
+                    
+                    if forward_rule_number:
+                        forward_result = UFWManager._delete_single_rule(forward_rule_number)
+                
+                # Return combined result
+                if input_result['success']:
+                    return {
+                        'success': True,
+                        'output': f"INPUT rule deleted: {input_result['output']}\nFORWARD rule: {forward_result['output']}",
+                        'error': forward_result.get('error', '') if not forward_result['success'] else ''
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'output': f"INPUT: {input_result['output']}\nFORWARD: {forward_result['output']}",
+                        'error': f"INPUT error: {input_result.get('error', '')}\nFORWARD error: {forward_result.get('error', '')}"
+                    }
+            else:
+                # For non-input rules or rules without port info, delete normally
+                return UFWManager._delete_single_rule(rule_num)
+                
+        except ValueError:
+            return {'success': False, 'error': 'Invalid rule number'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    @staticmethod
+    def _delete_single_rule(rule_number):
+        """Helper method to delete a single UFW rule by number"""
+        try:
             # Use subprocess to auto-confirm the deletion prompt by piping 'yes'
             p1 = subprocess.Popen(['yes'], stdout=subprocess.PIPE)
             p2 = subprocess.Popen(
-                ['sudo', 'ufw', 'delete', str(rule_num)],
+                ['sudo', 'ufw', 'delete', str(rule_number)],
                 stdin=p1.stdout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -372,8 +578,6 @@ class UFWManager:
                 'error': error.strip()
             }
             
-        except ValueError:
-            return {'success': False, 'error': 'Invalid rule number'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
     
@@ -582,6 +786,25 @@ def api_reset():
     """API endpoint to reset UFW"""
     result = UFWManager.reset()
     return jsonify(result)
+
+@app.route('/api/docker/status')
+@login_required
+def api_docker_status():
+    """API endpoint to get Docker integration status"""
+    status = DockerUFWManager.check_docker_integration()
+    containers = DockerUFWManager.get_docker_containers()
+    return jsonify({
+        'integration_status': status,
+        'containers': containers,
+        'ufw_docker_available': DockerUFWManager.is_ufw_docker_installed()
+    })
+
+@app.route('/api/docker/containers')
+@login_required
+def api_docker_containers():
+    """API endpoint to get list of Docker containers"""
+    containers = DockerUFWManager.get_docker_containers()
+    return jsonify({'containers': containers})
 
 @app.route('/logs')
 @login_required

@@ -57,6 +57,43 @@ fi
 echo "🔧 Ensuring start script is executable..."
 chmod +x "$SCRIPT_DIR/start.sh"
 
+# Automatic Docker integration setup
+echo ""
+echo "🐳 Docker Integration Setup"
+echo "=========================="
+echo "Installing ufw-docker for enhanced Docker-UFW integration..."
+
+# Make the ufw-docker install script executable and run it
+chmod +x "$SCRIPT_DIR/install-ufw-docker.sh"
+if "$SCRIPT_DIR/install-ufw-docker.sh"; then
+    echo "✅ ufw-docker installed successfully"
+    
+    # Install ufw-docker firewall rules
+    echo "🔧 Installing ufw-docker firewall rules..."
+    if sudo ufw-docker install; then
+        echo "✅ ufw-docker firewall rules installed"
+    else
+        echo "⚠️  ufw-docker firewall rules installation failed, but continuing..."
+    fi
+    
+    # Reload UFW to apply changes
+    echo "🔄 Reloading UFW..."
+    sudo ufw reload || echo "⚠️  UFW reload failed, but continuing..."
+    
+    # Restart UFW service
+    echo "🔄 Restarting UFW service..."
+    sudo systemctl restart ufw || echo "⚠️  UFW service restart failed, but continuing..."
+    
+    # Restart Docker service to ensure proper integration
+    echo "🔄 Restarting Docker service..."
+    sudo systemctl restart docker || echo "⚠️  Docker service restart failed, but continuing..."
+    
+    echo "✅ Docker-UFW integration setup completed!"
+else
+    echo "⚠️  ufw-docker installation failed, but you can run it manually later:"
+    echo "   $SCRIPT_DIR/install-ufw-docker.sh"
+fi
+
 echo ""
 echo "✅ Installation completed!"
 echo ""
@@ -68,3 +105,10 @@ echo "🌐 Then open your browser to: http://localhost:5000"
 echo "🔐 Default admin user will be auto-created on first run (set ADMIN_DEFAULT_PASSWORD in .env first)."
 echo ""
 echo "⚠️  Remember to change the default password after first login!"
+echo ""
+echo "🐳 Docker Integration Features (Automatically Enabled):"
+echo "   • When allowing ports, both INPUT and FORWARD rules are created"
+echo "   • FORWARD rules are hidden from UI but managed in the backend"
+echo "   • This ensures Docker containers can receive traffic properly"
+echo "   • ufw-docker provides additional container-specific management"
+echo "   • Docker and UFW services have been restarted for proper integration"
