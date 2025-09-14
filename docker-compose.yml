@@ -22,7 +22,7 @@ services:
       - /var/log/syslog:/var/log/syslog:ro
       # Mount host's network configuration for UFW access
       - /sys/class/net:/sys/class/net:ro
-    network:
+    networks:
       - ufw_manager_network
     privileged: true
     cap_add:
