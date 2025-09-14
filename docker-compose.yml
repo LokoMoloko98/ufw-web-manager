@@ -6,7 +6,7 @@ services:
     container_name: ufw-web-manager
     restart: unless-stopped
     ports:
-      - "5000"
+      - "5000:5000"
     environment:
       - FLASK_ENV=production
       - ADMIN_DEFAULT_PASSWORD=ufw-admin-2024
