@@ -4,7 +4,7 @@ Minimal, focused web UI for managing UFW (Uncomplicated Firewall) on Ubuntu/Debi
 
 ---
 ## 1. Why Use It?
-Single-file Flask app + small templates that let you:
+- 🐳 Docker-deployable single-file Flask app + small templates that let you:
 - 🔥 Toggle UFW on/off
 - 📋 See inbound vs outbound rules (separated)
 - ➕ Add precise rules (direction, action, IP version, transport protocol, ports, from/to)
@@ -12,7 +12,9 @@ Single-file Flask app + small templates that let you:
 - 📊 View latest UFW logs
 - ♻️ Reset firewall to defaults
 - 🔐 Manage authentication (SQLite + bcrypt) and recover access (token or CLI)
-- 🐳 **Docker-ready** with full host UFW access and isolated environment
+- 🐳 Docker container firewall management with automatic integration of [chaifeng's ufw-docker](https://github.com/chaifeng/ufw-docker)
+- 🎯 Single source of truth for all UFW rules including Docker container traffic, meaning no manual Docker iptables configuration needed
+
 
 ---
 ## 2. Quick Start
@@ -98,6 +100,10 @@ Edit `CONFIG` in `app.py` if you want to hard-code host/port/debug outside env v
 | Action             | Allow          |
 | Network Protocol   | IPv4 Only      |
 | Transport Protocol | TCP            |
+
+
+---
+## 8. Advanced Configuration
 | Port               | 22             |
 | Source IP          | 203.0.113.0/24 |
 | Destination IP     | (leave blank)  |
@@ -163,39 +169,14 @@ sudo ufw logging on   # enable if empty
 ```
 
 ---
-## 9. File Layout
-```
-├── README.md
-├── app.py
-├── auth.db
-├── install.sh
-├── requirements.txt
-├── reset_admin_password.py
-├── start.sh
-└── templates
-    ├── 404.html
-    ├── 500.html
-    ├── change_password.html
-    ├── dashboard.html
-    ├── forgot_password.html
-    ├── login.html
-    └── logs.html
-```
-
----
-## 10. Potential Improvements
+## 9. Potential Improvements
 - Inline rule editing
 - Bulk rule actions
 - Search / filtering & tagging
 - Dark mode
-- Configuration UI (dynamic token & settings)
-- API tokens / external IdP integration
 
 Contributions & suggestions welcome — open an issue or PR.
 
 ---
 ## 11. License
 Licensed under the Apache License 2.0 – see `LICENSE` for full text.
-
-## 12. Author
-LokoMoloko98
